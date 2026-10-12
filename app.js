@@ -1,9 +1,12 @@
 import {zh,en} from './copy.js';
+import {zhCN,toSimplified} from './simplified.js';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const escapeHTML=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let locale='zh-Hant';try{if(localStorage.getItem('azure-demo-language')==='en')locale='en'}catch{}
-const t=key=>locale==='en'?(en[key]||key):(zh[key]||key);
-const bilingual=(a,b)=>locale==='en'?b:a;
+// Every fresh visit starts in Traditional Chinese; selection stays within this session.
+let locale='zh-Hant';
+const t=key=>locale==='en'?(en[key]||key):locale==='zh-Hans'?(zhCN[key]||toSimplified(zh[key]||key)):(zh[key]||key);
+const localizeChinese=s=>locale==='zh-Hans'?toSimplified(s):s;
+const bilingual=(a,b)=>locale==='en'?b:localizeChinese(a);
 const state={page:'login',email:'',password:'',newPassword:'',confirmPassword:'',demoPassword:'AzureDemo!2026',method:'email',digits:Array(6).fill(''),code:'381726',codeVersion:0,expires:0,resend:0,attempts:0,credentialAttempts:0,lockUntil:0,resetExpires:0,resetResend:0,verified:0,error:'',message:'',busy:false,lastActivity:Date.now()};
 let flowVersion=0;
 const view=$('#view');
@@ -90,8 +93,8 @@ view.addEventListener('submit',async e=>{e.preventDefault();if(state.busy)return
   }else if(e.target.id==='reset-form'){if(Date.now()>=state.resetExpires)return go('linkExpired');if(!passwordReady())return;if(state.newPassword===state.demoPassword)return go('reset',{error:'same-password'});state.demoPassword=state.newPassword;state.newPassword='';state.confirmPassword='';state.password='';state.verified=0;state.resetExpires=0;go('resetDone')}
 });
 
-// Only the language preference is persisted. Demo credentials and verification state stay in memory.
-function setLanguage(lang){locale=lang;document.documentElement.lang=lang;$('#announcer').textContent='';$('.brand').setAttribute('aria-label',bilingual('Azure 虛擬銀行','Azure Virtual Bank'));try{localStorage.setItem('azure-demo-language',lang)}catch{}$('#active-language').textContent=lang==='en'?'English':'繁體中文';$$('[data-copy]').forEach(el=>el.textContent=t(el.dataset.copy));$$('[data-lang]').forEach(el=>el.setAttribute('aria-checked',String(el.dataset.lang===lang)));$('#demo-trigger').textContent=bilingual('互動示範','Interactive demo');$('#demo-title').textContent=bilingual('互動示範','Interactive demo');$('#demo-close').setAttribute('aria-label',bilingual('關閉','Close'));$('.skip').textContent=bilingual('跳至主要內容','Skip to content');$('.carousel-controls').setAttribute('aria-label',bilingual('品牌主題','Brand stories'));document.title=bilingual('Azure 虛擬銀行 · 互動示範','Azure Virtual Bank · Interactive Demo');closeLanguage();renderSlide();render(false);updateMotionButton();}
+// Language, demo credentials and verification state stay in memory only.
+function setLanguage(lang){locale=lang;document.documentElement.lang=lang;$('#announcer').textContent='';$('.brand').setAttribute('aria-label',bilingual('Azure 虛擬銀行','Azure Virtual Bank'));$('#active-language').textContent=({'en':'English','zh-Hans':'简体中文','zh-Hant':'繁體中文'})[lang];$$('[data-copy]').forEach(el=>el.textContent=t(el.dataset.copy));$$('[data-lang]').forEach(el=>el.setAttribute('aria-checked',String(el.dataset.lang===lang)));$('#demo-trigger').textContent=bilingual('互動示範','Interactive demo');$('#demo-title').textContent=bilingual('互動示範','Interactive demo');$('#demo-close').setAttribute('aria-label',bilingual('關閉','Close'));$('.skip').textContent=bilingual('跳至主要內容','Skip to content');$('.carousel-controls').setAttribute('aria-label',bilingual('品牌主題','Brand stories'));document.title=bilingual('Azure 虛擬銀行 · 互動示範','Azure Virtual Bank · Interactive Demo');closeLanguage();renderSlide();render(false);updateMotionButton();}
 function closeLanguage(){const menu=$('#language-menu');menu.hidden=true;$('#language-trigger').setAttribute('aria-expanded','false')}
 $('#language-trigger').addEventListener('click',()=>{const open=$('#language-menu').hidden;$('#language-menu').hidden=!open;$('#language-trigger').setAttribute('aria-expanded',String(open));if(open)$('[data-lang="'+locale+'"]').focus()});
 $('#language-menu').addEventListener('click',e=>{const b=e.target.closest('[data-lang]');if(b){setLanguage(b.dataset.lang);$('#language-trigger').focus()}});
@@ -119,11 +122,47 @@ const slides=[
   {title:['金融服務，\n隨您的節奏前行。','Banking that moves\nat your pace.'],description:['從日常管理到未來規劃，\n以更直覺的方式，連結每一個金融時刻。','From everyday management to future plans.\nA more intuitive way to connect with your finances.'],card:['每一刻，從容有序。','Every moment, in balance.'],detail:['讓繁複化為簡單，讓生活保有節奏。','Less complexity. More room for everyday life.'],status:['您的節奏・您的選擇','Your pace. Your choices.']},
   {title:['數位連結，\n延伸每一種可能。','Connected digitally.\nOpen to possibilities.'],description:['跨越時間與距離，\n探索更靈活、更貼近生活的金融體驗。','Across time and distance.\nExplore a more flexible banking experience.'],card:['更多可能，隨您探索。','More possibilities await.'],detail:['連結今天，想像下一個金融日常。','Connecting today to your financial tomorrow.'],status:['數位連結・無限想像','Connected to new possibilities']}
 ];
-let slideIndex=0,transitioning=false,paused=matchMedia('(prefers-reduced-motion: reduce)').matches,carouselTimer,transitionTimers=[];const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)');
-function renderSlide(){const s=slides[slideIndex],i=locale==='en'?1:0;$('#brand-title').textContent=s.title[i];$('#brand-description').textContent=s.description[i];$('#card-title').textContent=s.card[i];$('#card-description').textContent=s.detail[i];$('#card-status').textContent=s.status[i];$('.brand').dataset.slide=String(slideIndex);$$('.dot[data-slide]').forEach((b,j)=>{b.classList.toggle('active',j===slideIndex);b.setAttribute('aria-pressed',String(j===slideIndex));b.setAttribute('aria-label',bilingual('主題 ','Story ')+(j+1))})}
-function changeSlide(index){if(transitioning||index===slideIndex)return;const brand=$('.brand');if(reduceMotion.matches){slideIndex=index;renderSlide();return}transitioning=true;brand.classList.remove('entering');brand.classList.add('leaving');transitionTimers.push(setTimeout(()=>{slideIndex=index;renderSlide();brand.classList.remove('leaving');brand.classList.add('entering');transitionTimers.push(setTimeout(()=>{brand.classList.remove('entering');transitioning=false},1000))},650))}
+const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)');
+let slideIndex=0,activeLayer=0,transitioning=false,queuedSlide=null,paused=reduceMotion.matches,carouselTimer,motionGeneration=0,motionAnimations=[];
+// Two persistent layers overlap while the shared floating container keeps its phase.
+const firstStory=$('.brand-story'),firstCard=$('.finance-card');
+const cardFloat=document.createElement('div');cardFloat.className='card-float';
+firstCard.replaceWith(cardFloat);cardFloat.append(firstCard);
+for(const [id,key] of [['brand-title','title'],['brand-description','description'],['card-title','card'],['card-description','detail'],['card-status','status']])$('#'+id).dataset.slideField=key;
+const secondStory=firstStory.cloneNode(true),secondCard=firstCard.cloneNode(true);
+for(const clone of [secondStory,secondCard])clone.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));
+firstStory.after(secondStory);cardFloat.append(secondCard);
+const slideLayers=[{story:firstStory,card:firstCard},{story:secondStory,card:secondCard}];
+slideLayers.forEach(layer=>Object.values(layer).forEach(el=>el.classList.add('motion-layer')));
+function fillSlideLayer(layer,index){const slide=slides[index],language=locale==='en'?1:0;for(const root of Object.values(layer)){root.querySelectorAll('[data-slide-field]').forEach(el=>el.textContent=localizeChinese(slide[el.dataset.slideField][language]));root.querySelectorAll('[data-copy]').forEach(el=>el.textContent=t(el.dataset.copy))}}
+function updateSlideControls(){$('.brand').dataset.slide=String(slideIndex);$$('.dot[data-slide]').forEach((b,j)=>{b.classList.toggle('active',j===slideIndex);b.setAttribute('aria-pressed',String(j===slideIndex));b.setAttribute('aria-label',bilingual('主題 ','Story ')+(j+1))})}
+function settleLayers(){slideLayers.forEach((layer,i)=>Object.values(layer).forEach(el=>{el.classList.toggle('is-active',i===activeLayer);el.setAttribute('aria-hidden',String(i!==activeLayer))}))}
+function renderSlide(){motionGeneration++;motionAnimations.forEach(a=>a.cancel());motionAnimations=[];transitioning=false;queuedSlide=null;slideLayers.forEach(layer=>fillSlideLayer(layer,slideIndex));settleLayers();updateSlideControls()}
+async function changeSlide(index){
+  if(transitioning){queuedSlide=index;return}if(index===slideIndex)return;
+  if(reduceMotion.matches){slideIndex=index;renderSlide();return}
+  transitioning=true;const generation=++motionGeneration,outgoing=slideLayers[activeLayer];activeLayer=1-activeLayer;const incoming=slideLayers[activeLayer];
+  slideIndex=index;fillSlideLayer(incoming,index);settleLayers();updateSlideControls();
+  const easing='cubic-bezier(.25,.55,.3,1)';
+  motionAnimations=Object.keys(incoming).flatMap(key=>{
+    const tilt=key==='card'?.35:0;
+    return [outgoing[key].animate([
+      {opacity:1,transform:'translate3d(0,0,0) rotate(0deg)'},
+      {opacity:.45,transform:`translate3d(-8px,-5px,0) rotate(${-tilt/2}deg)`,offset:.5},
+      {opacity:0,transform:`translate3d(-18px,-3px,0) rotate(${-tilt}deg)`}
+    ],{duration:1100,easing,fill:'both'}),incoming[key].animate([
+      {opacity:0,transform:`translate3d(20px,10px,0) rotate(${tilt}deg)`},
+      {opacity:.6,transform:`translate3d(7px,-2px,0) rotate(${tilt/3}deg)`,offset:.5},
+      {opacity:1,transform:'translate3d(0,0,0) rotate(0deg)'}
+    ],{duration:1200,easing,fill:'both'})];
+  });
+  await Promise.allSettled(motionAnimations.map(a=>a.finished));
+  if(generation!==motionGeneration)return;
+  motionAnimations.forEach(a=>a.cancel());motionAnimations=[];transitioning=false;
+  const next=queuedSlide;queuedSlide=null;if(next!==null&&next!==slideIndex)changeSlide(next);
+}
 function scheduleCarousel(){clearInterval(carouselTimer);if(!paused&&!reduceMotion.matches)carouselTimer=setInterval(()=>{if(!document.hidden&&matchMedia('(min-width:1200px)').matches&&!dialog.open)changeSlide((slideIndex+1)%slides.length)},7000)}
 function updateMotionButton(){const b=$('#motion-toggle');b.disabled=reduceMotion.matches;b.title=reduceMotion.matches?bilingual('已依系統設定減少動態效果','Reduced motion follows your system preference'):'';b.setAttribute('aria-label',paused?bilingual('播放動畫','Play animation'):bilingual('暫停動畫','Pause animation'));b.setAttribute('aria-pressed',String(paused));b.firstElementChild.textContent=paused?'▷':'Ⅱ';$('.brand').classList.toggle('paused',paused)}
-$$('.dot[data-slide]').forEach(b=>b.addEventListener('click',()=>{changeSlide(Number(b.dataset.slide));scheduleCarousel()}));$('#motion-toggle').addEventListener('click',()=>{paused=!paused;updateMotionButton();scheduleCarousel()});reduceMotion.addEventListener('change',e=>{paused=e.matches;if(e.matches){transitionTimers.forEach(clearTimeout);transitionTimers=[];transitioning=false;$('.brand').classList.remove('entering','leaving')}updateMotionButton();scheduleCarousel()});
+$$('.dot[data-slide]').forEach(b=>b.addEventListener('click',()=>{changeSlide(Number(b.dataset.slide));scheduleCarousel()}));$('#motion-toggle').addEventListener('click',()=>{paused=!paused;updateMotionButton();scheduleCarousel()});reduceMotion.addEventListener('change',e=>{paused=e.matches;if(e.matches)renderSlide();updateMotionButton();scheduleCarousel()});
 document.addEventListener('keydown',()=>state.lastActivity=Date.now());document.addEventListener('pointerdown',()=>state.lastActivity=Date.now());
 setLanguage(locale);setInterval(tick,1000);scheduleCarousel();

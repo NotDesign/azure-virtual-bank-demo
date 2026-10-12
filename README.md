@@ -5,7 +5,7 @@
 - 公開網站：https://notdesign.github.io/azure-virtual-bank-demo/
 - Figma：https://www.figma.com/design/4HPdannFcKHg47t9esIPUS/VA-Bank-CMS?node-id=8-86
 - 桌面 1920×1080、平板 768×1024、手機 390×844，支援 320px 起的 RWD。
-- 繁中／English 切換；只有語言偏好儲存在 localStorage。
+- 繁中／簡中／English 切換；每次開啟與重新整理都預設繁體中文，同次操作保留所選語言。
 - Email、SMS、Authenticator 三種 6 碼驗證方式；數字鍵盤、整組貼上、自動跳格與 Backspace。
 - 錯誤、逾時、重寄冷卻、暫時鎖定、忘記密碼、重設連結失效、網路錯誤與工作階段逾時。
 - 左側三組虛擬銀行主題，每 7 秒以弧線位移和淡入淡出切換；支援手動切換、暫停及系統 reduced motion。
@@ -50,3 +50,7 @@ npm run build
 ## 素材
 
 Azure Logo 由專案擁有者提供，原檔像素及比例保留。品牌與設計資產權利仍歸各自權利人，未另外授予通用素材授權。Noto Sans TC 使用 SIL Open Font License，詳見 `assets/OFL-NotoSansTC.txt`。
+
+## 動態與語言更新
+
+左側以兩組固定圖層交叉淡入淡出，1.2 秒完成弧線過渡；背景與卡片浮動獨立運作，不因換頁重新啟動。快速點選會保留最後一個選擇，系統減少動態設定仍優先。簡體中文由 OpenCC 轉換後納入固定文案字典，無第三方請求。
