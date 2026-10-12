@@ -1,2 +1,52 @@
-# azure-virtual-bank-demo
-Azure virtual banking interactive demo - Traditional Chinese / English, responsive layouts, six-digit OTP.
+# Azure 虛擬銀行互動 Demo
+
+繁體中文優先的虛擬銀行帳戶與身分驗證流程，依 Figma 原生設計實作。
+
+- 公開網站：https://notdesign.github.io/azure-virtual-bank-demo/
+- Figma：https://www.figma.com/design/4HPdannFcKHg47t9esIPUS/VA-Bank-CMS?node-id=8-86
+- 桌面 1920×1080、平板 768×1024、手機 390×844，支援 320px 起的 RWD。
+- 繁中／English 切換；只有語言偏好儲存在 localStorage。
+- Email、SMS、Authenticator 三種 6 碼驗證方式；數字鍵盤、整組貼上、自動跳格與 Backspace。
+- 錯誤、逾時、重寄冷卻、暫時鎖定、忘記密碼、重設連結失效、網路錯誤與工作階段逾時。
+- 左側三組虛擬銀行主題，每 7 秒以弧線位移和淡入淡出切換；支援手動切換、暫停及系統 reduced motion。
+
+## 示範方式
+
+點擊頁尾「互動示範」，可填入示範帳戶、目前 OTP、模擬重設連結及各種例外狀態。
+
+| 項目 | 示範值 |
+| --- | --- |
+| 帳戶 | `admin@example.com` |
+| 初始密碼 | `AzureDemo!2026` |
+| 初始 OTP | `381726` |
+| 第一次重寄 OTP | `042851` |
+
+本專案為純前端互動設計示範，不是真實銀行服務或身份驗證系統。沒有後端、帳戶查詢、郵件、簡訊或 TOTP 整合。不得輸入真實憑證。驗證資料僅保留在記憶體，重新整理即重設；示範密碼重設不會修改任何真實帳戶。程式不傳送表單資料。HTML CSP 禁止連線及表單提交。
+
+OTP 有效 5 分鐘，重寄冷卻 30 秒。5 次失敗暫停 15 分鐘。重設連結有效 15 分鐘，密碼至少 12 字元，包含英文字母、數字與符號。這些是可供檢閱的示範規則，正式實作應由後端政策決定。
+
+## 本機執行
+
+需要 Node.js 20 或以上，無 runtime 套件依賴。
+
+```sh
+npm start
+# http://127.0.0.1:3192
+npm run build
+# 靜態發布產物：dist/
+```
+
+網站可直接透過 GitHub Pages 從 `main` 根目錄發布。資產、字型皆由同站載入，不使用第三方 CDN。
+
+## 結構
+
+- `index.html`：品牌輪播、頁首、表單容器與示範面板。
+- `app.js`：可操作驗證流程、語言切換、計時與輪播。
+- `copy.js`：與 Figma 對應的繁中及英文文案。
+- `styles.css`：設計變數、RWD、互動狀態與動態效果。
+- `assets/`：Figma 原始資產與 Noto Sans TC 網頁字型子集。
+- `scripts/`：本機靜態 server 及固定允許清單的發布建置。
+
+## 素材
+
+Azure Logo 由專案擁有者提供，原檔像素及比例保留。品牌與設計資產權利仍歸各自權利人，未另外授予通用素材授權。Noto Sans TC 使用 SIL Open Font License，詳見 `assets/OFL-NotoSansTC.txt`。

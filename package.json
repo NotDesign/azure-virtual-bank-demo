@@ -1,0 +1,9 @@
+{
+  "name": "azure-virtual-bank-demo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Azure virtual banking interactive design demo",
+  "scripts": {"start": "node scripts/serve.mjs", "build": "node scripts/build.mjs"},
+  "engines": {"node": ">=20"}
+}

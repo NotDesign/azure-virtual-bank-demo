@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#004beb">
+  <meta name="description" content="Azure 虛擬銀行互動設計示範。繁體中文及英文，三種身分驗證方式。">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'">
+  <title>Azure 虛擬銀行 · 互動示範</title>
+  <link rel="icon" href="assets/75b97.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">跳至主要內容</a>
+  <div class="shell">
+    <aside class="brand" aria-label="Azure 虛擬銀行">
+      <img class="brand-logo" src="assets/d7a5f.png" width="318" height="106" alt="Azure ²">
+      <div class="brand-stage" aria-roledescription="carousel">
+        <div class="brand-story">
+          <p class="eyebrow" data-copy="AZURE VA  /  BANK CMS"></p>
+          <h1 id="brand-title"></h1>
+          <p class="brand-description" id="brand-description"></p>
+        </div>
+        <div class="illustration" aria-hidden="true">
+          <div class="glow"></div>
+          <div class="orbit orbit-one"><img src="assets/018d5.svg" alt=""></div>
+          <div class="orbit orbit-two"><img src="assets/993ce.svg" alt=""></div>
+          <div class="orbit orbit-three"><img src="assets/d7bb6.svg" alt=""></div>
+          <div class="disc"><img src="assets/75b97.svg" alt=""></div>
+          <div class="finance-card">
+            <div class="card-top"><span>AZURE VA</span><span class="icon icon-shield-lg"><img src="assets/2ad66.svg" alt=""></span></div>
+            <div class="card-details"><h2 id="card-title"></h2><p id="card-description"></p></div>
+            <p class="card-status"><span class="icon icon-check"><img src="assets/1affb.svg" alt=""></span><span id="card-status"></span></p>
+          </div>
+        </div>
+      </div>
+      <div class="brand-bottom">
+        <p><span class="icon icon-shield"><img src="assets/ef06e.svg" alt=""></span><span data-copy="Built around your security"></span></p>
+        <div class="carousel-controls" role="group" aria-label="品牌主題">
+          <button class="dot active" data-slide="0" aria-label="主題 1" aria-pressed="true"></button>
+          <button class="dot" data-slide="1" aria-label="主題 2" aria-pressed="false"></button>
+          <button class="dot" data-slide="2" aria-label="主題 3" aria-pressed="false"></button>
+          <button id="motion-toggle" class="pause-button" aria-label="暫停動畫" aria-pressed="false"><span aria-hidden="true">Ⅱ</span></button>
+        </div>
+      </div>
+    </aside>
+    <div class="workspace">
+      <header class="header">
+        <img class="header-logo" src="assets/d7a5f.png" width="174" height="58" alt="Azure ²">
+        <p class="eyebrow header-wordmark" data-copy="BANK CMS  /  SECURE ACCESS"></p>
+        <div class="language">
+          <button id="language-trigger" class="language-trigger" aria-haspopup="menu" aria-expanded="false" aria-controls="language-menu"><span class="icon icon-globe"><img src="assets/e0ed1.svg" alt=""></span><span id="active-language">繁體中文</span><img src="assets/72e92.svg" alt=""></button>
+          <div id="language-menu" class="language-menu" role="menu" hidden>
+            <button role="menuitemradio" aria-checked="true" data-lang="zh-Hant">繁體中文<span>✓</span></button>
+            <button role="menuitemradio" aria-checked="false" data-lang="en">English<span>✓</span></button>
+          </div>
+        </div>
+      </header>
+      <main id="main" tabindex="-1"><div id="view" class="form"></div></main>
+      <footer class="footer"><button class="demo-trigger" id="demo-trigger">互動示範</button><p>© 2026 Azure ²</p></footer>
+    </div>
+  </div>
+  <dialog id="demo-dialog" aria-labelledby="demo-title"><div class="dialog-head"><h2 id="demo-title">互動示範</h2><button class="icon-button" id="demo-close" aria-label="關閉">×</button></div><div id="demo-content"></div></dialog>
+  <div class="sr-only" id="announcer" aria-live="polite" aria-atomic="true"></div>
+  <noscript>請啟用 JavaScript，以使用這個互動示範。</noscript>
+</body>
+</html>
