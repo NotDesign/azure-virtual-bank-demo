@@ -152,11 +152,11 @@ async function changeSlide(index){
     const tilt=key==='card'?.35:0;
     return [outgoing[key].animate([
       {opacity:1,transform:'translate3d(0,0,0) rotate(0deg)'},
-      {opacity:.45,transform:`translate3d(-8px,-5px,0) rotate(${-tilt/2}deg)`,offset:.5},
-      {opacity:0,transform:`translate3d(-18px,-3px,0) rotate(${-tilt}deg)`}
+      {opacity:.45,transform:`translate3d(-10px,5px,0) rotate(${-tilt/2}deg)`,offset:.5},
+      {opacity:0,transform:`translate3d(-22px,18px,0) rotate(${-tilt}deg)`}
     ],{duration:1100,easing,fill:'both'}),incoming[key].animate([
-      {opacity:0,transform:`translate3d(20px,10px,0) rotate(${tilt}deg)`},
-      {opacity:.6,transform:`translate3d(7px,-2px,0) rotate(${tilt/3}deg)`,offset:.5},
+      {opacity:0,transform:`translate3d(22px,18px,0) rotate(${tilt}deg)`},
+      {opacity:.6,transform:`translate3d(10px,5px,0) rotate(${tilt/2}deg)`,offset:.5},
       {opacity:1,transform:'translate3d(0,0,0) rotate(0deg)'}
     ],{duration:1200,easing,fill:'both'})];
   });
