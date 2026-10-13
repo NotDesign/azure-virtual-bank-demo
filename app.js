@@ -116,7 +116,7 @@ dialog.addEventListener('click',e=>{if(e.target===dialog){const b=dialog.getBoun
   if(id==='sessionExpired')state.verified=0;go(id);
 });
 
-// Curved entrance/exit keyframes keep the bank stories calm and avoid moving the form.
+// Headlines crossfade in place; only the illustration follows the curved transition.
 const slides=[
   {title:['虛擬銀行，\n開啟金融新日常。','Virtual banking.\nA new financial everyday.'],description:['以數位金融，連結更多可能。\n讓每一天的金融服務，更簡單、更貼近您。','Digital finance, with more possibilities.\nEveryday banking, made simpler and closer to you.'],card:['金融日常，自在掌握。','Banking, on your terms.'],detail:['透過數位服務，連結更多金融可能。','A connected world of digital finance.'],status:['數位金融・自在掌握','Digital finance, within reach']},
   {title:['金融服務，\n隨您的節奏前行。','Banking that moves\nat your pace.'],description:['從日常管理到未來規劃，\n以更直覺的方式，連結每一個金融時刻。','From everyday management to future plans.\nA more intuitive way to connect with your finances.'],card:['每一刻，從容有序。','Every moment, in balance.'],detail:['讓繁複化為簡單，讓生活保有節奏。','Less complexity. More room for everyday life.'],status:['您的節奏・您的選擇','Your pace. Your choices.']},
@@ -145,6 +145,10 @@ async function changeSlide(index){
   slideIndex=index;fillSlideLayer(incoming,index);settleLayers();updateSlideControls();
   const easing='cubic-bezier(.25,.55,.3,1)';
   motionAnimations=Object.keys(incoming).flatMap(key=>{
+    if(key==='story')return [
+      outgoing.story.animate([{opacity:1},{opacity:0}],{duration:1100,easing,fill:'both'}),
+      incoming.story.animate([{opacity:0},{opacity:1}],{duration:1200,easing,fill:'both'})
+    ];
     const tilt=key==='card'?.35:0;
     return [outgoing[key].animate([
       {opacity:1,transform:'translate3d(0,0,0) rotate(0deg)'},
