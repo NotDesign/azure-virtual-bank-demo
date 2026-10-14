@@ -120,3 +120,5 @@ const originalWizSubmit=wizSubmit;
 wizSubmit=function(ctx){const terms=document.querySelector('.page-in input[type=checkbox],.public-body input[type=checkbox]');if(!terms?.checked){toast(C('請確認資料及同意服務條款。','请确认资料及同意服务条款。','Confirm the information and accept the terms.'));return;}originalWizSubmit(ctx);};
 const originalEnsureK=wizEnsureK;
 wizEnsureK=function(){const w=wiz(),fresh=!w.k,k=originalEnsureK();if(fresh){k.contact=w.contact||'';k.email=w.email||'';k.phone=w.phone||'+852 ';}return k;};
+
+const originalHead=head;head=function(title,...args){return originalHead(E(title),...args);};
