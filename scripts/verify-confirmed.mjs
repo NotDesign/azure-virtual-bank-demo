@@ -1,0 +1,12 @@
+import {chromium} from 'playwright';
+import fs from 'node:fs/promises';
+const browser=await chromium.launch({headless:true,executablePath:'/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'});
+const page=await browser.newPage({viewport:{width:1920,height:1080}}),errors=[],requests=[];
+page.on('pageerror',e=>errors.push(e.message));page.on('requestfailed',r=>requests.push({url:r.url(),error:r.failure()?.errorText}));
+await page.goto('http://127.0.0.1:3193/');
+await page.locator('#email').fill('stephen@ourbank.example');await page.locator('#password').fill('AzureDemo!2026');await page.locator('#submit').click();await page.locator('[data-method=email]').click();
+for(let i=0;i<6;i++)await page.locator('#digit-'+i).fill('381726'[i]);await page.locator('#submit').click();
+await page.locator('.cms-confirmed-frame').waitFor();const frame=page.frames().find(f=>f.url().includes('/confirmed/'));await frame.waitForSelector('.page-title');
+await page.screenshot({path:'.design-build/hq-desktop.png',fullPage:true});
+console.log(JSON.stringify({title:await frame.locator('.page-title').innerText(),errors,requests},null,2));
+await browser.close();

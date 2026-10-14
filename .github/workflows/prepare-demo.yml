@@ -1,0 +1,31 @@
+name: Prepare Azure static demo
+on:
+  push:
+    branches: [codex/client-confirmed-20261014]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: azure-vendor-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run setup
+      - run: npm run build
+      - name: Commit verified local runtime assets
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add vendor vendor-manifest.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Prepare pinned local PDF and OCR runtime for Azure demo"
+            git push origin HEAD:"${GITHUB_REF_NAME}"
+          fi

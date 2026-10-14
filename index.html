@@ -5,11 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#004beb">
   <meta name="description" content="Azure 虛擬銀行互動設計示範。繁體中文、簡體中文及英文，三種身分驗證方式。">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self'; connect-src 'self'; worker-src 'self' blob:; form-action 'none'; base-uri 'none'; object-src 'none'">
   <title>Azure 虛擬銀行 · 互動示範</title>
   <link rel="icon" href="assets/75b97.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css?v=20261013-disc-orbit">
-  <script type="module" src="app.js?v=20261013-lower-arc"></script>
+  
+  
+  <link rel="stylesheet" href="cms/styles.css?v=20261014-cms">
+  
+  <link rel="stylesheet" href="cms/demo-panel.css?v=20261014-cms">
+  <script type="module" src="app.js?v=20261014-confirmed-four-scopes"></script>
 </head>
 <body>
   <a class="skip" href="#main">跳至主要內容</a>
@@ -62,6 +67,7 @@
       <footer class="footer"><button class="demo-trigger" id="demo-trigger">互動示範</button><p>© 2026 Azure ²</p></footer>
     </div>
   </div>
+  <div id="cms-host" class="cms" hidden></div>
   <dialog id="demo-dialog" aria-labelledby="demo-title"><div class="dialog-head"><h2 id="demo-title">互動示範</h2><button class="icon-button" id="demo-close" aria-label="關閉">×</button></div><div id="demo-content"></div></dialog>
   <div class="sr-only" id="announcer" aria-live="polite" aria-atomic="true"></div>
   <noscript>請啟用 JavaScript，以使用這個互動示範。</noscript>

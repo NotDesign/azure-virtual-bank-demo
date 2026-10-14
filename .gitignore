@@ -2,3 +2,7 @@ node_modules/
 dist/
 test-results/
 .DS_Store
+
+.design-build/
+**/* 2.*
+**/*.map

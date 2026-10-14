@@ -1,56 +1,34 @@
-# Azure 虛擬銀行互動 Demo
+# Azure CMS interactive demo
 
-繁體中文優先的虛擬銀行帳戶與身分驗證流程，依 Figma 原生設計實作。
+Traditional Chinese first, with Simplified Chinese and English. The login preserves the existing independent Azure orb, ripple and slider motion. Email, SMS and Authenticator OTP flows lead to the authenticated CMS.
 
-- 公開網站：https://notdesign.github.io/azure-virtual-bank-demo/
-- Figma：https://www.figma.com/design/4HPdannFcKHg47t9esIPUS/VA-Bank-CMS?node-id=8-86
-- 桌面 1920×1080、平板 768×1024、手機 390×844，支援 320px 起的 RWD。
-- 繁中／簡中／English 切換；每次開啟與重新整理都預設繁體中文，同次操作保留所選語言。
-- Email、SMS、Authenticator 三種 6 碼驗證方式；數字鍵盤、整組貼上、自動跳格與 Backspace。
-- 錯誤、逾時、重寄冷卻、暫時鎖定、忘記密碼、重設連結失效、網路錯誤與工作階段逾時。
-- 左側三組虛擬銀行主題，每 7 秒以弧線位移和淡入淡出切換；支援手動切換、暫停及系統 reduced motion。
+## Demo accounts
 
-## 示範方式
+| Scope | Email | Organization |
+|---|---|---|
+| Customer | finance@starocean.example | 星海電子科技有限公司 |
+| Level 1 agent | ops@ganghuitong.example | 港匯通顧問有限公司 |
+| Level 2 agent | chan@chanstudio.example | 陳氏商務工作室 |
+| Full administrator | stephen@ourbank.example | Azure |
 
-點擊頁尾「互動示範」，可填入示範帳戶、目前 OTP、模擬重設連結及各種例外狀態。
+Password: `AzureDemo!2026` · Initial OTP: `381726`. Resending changes the shown demo code. The login demo panel can fill accounts and current codes.
 
-| 項目 | 示範值 |
-| --- | --- |
-| 帳戶 | `admin@example.com` |
-| 初始密碼 | `AzureDemo!2026` |
-| 初始 OTP | `381726` |
-| 第一次重寄 OTP | `042851` |
+CMS scope is fixed by the authenticated account. There is no role switch. Public customer applications and agent registration are separate links; registration level is derived from the invitation code.
 
-本專案為純前端互動設計示範，不是真實銀行服務或身份驗證系統。沒有後端、帳戶查詢、郵件、簡訊或 TOTP 整合。不得輸入真實憑證。驗證資料僅保留在記憶體，重新整理即重設；示範密碼重設不會修改任何真實帳戶。程式不傳送表單資料。HTML CSP 禁止連線及表單提交。
+## Run and build
 
-OTP 有效 5 分鐘，重寄冷卻 30 秒。5 次失敗暫停 15 分鐘。重設連結有效 15 分鐘，密碼至少 12 字元，包含英文字母、數字與符號。這些是可供檢閱的示範規則，正式實作應由後端政策決定。
+`npm install` then `npm start` (http://127.0.0.1:3192). Use a current Node version. `npm run build` creates the portable static site in `dist/`. Serve the files over HTTP/HTTPS, not file://. All fonts, chart/QR libraries, PDF.js and OCR assets are vendored locally.
 
-## 本機執行
+## Source and behavior
 
-需要 Node.js 20 或以上，無 runtime 套件依賴。
+The client-confirmed 2026-10-14 prototype is in `cms/confirmed/`. Data, dates, financial formulas and snapshots remain in the source data and core modules. `bridge.js`, `brand.css` and `files.js` adapt authentication, Azure styling, spacing, role routing, dark mode, responsive tables, real document upload and human review. The original client folder was not changed.
 
-```sh
-npm start
-# http://127.0.0.1:3192
-npm run build
-# 靜態發布產物：dist/
-```
+Uploaded documents are recognized in the browser with PDF text or local Tesseract OCR. Only checked and reviewed candidates are applied; failed and unsupported files have individual statuses. Leading zeros and strings are preserved. OCR coverage and quality depend on the supplied file; no accuracy percentage is claimed.
 
-網站可直接透過 GitHub Pages 從 `main` 根目錄發布。資產、字型皆由同站載入，不使用第三方 CDN。
+ID front/back and portrait capture use the AllinPay camera workflow: consent, camera or photo fallback, review, cancellation, expiry and a six-digit completion code. Photos remain in memory and are released. This demo does not perform production face matching, liveness, bank API calls or outgoing email/SMS. Accounts, invitations, approvals and financial state are local simulated fixtures; front-end route guards are demonstration behavior, not server-side authorization.
 
-## 結構
+## Verification
 
-- `index.html`：品牌輪播、頁首、表單容器與示範面板。
-- `app.js`：可操作驗證流程、語言切換、計時與輪播。
-- `copy.js`：與 Figma 對應的繁中及英文文案。
-- `styles.css`：設計變數、RWD、互動狀態與動態效果。
-- `assets/`：Figma 原始資產與 Noto Sans TC 網頁字型子集。
-- `scripts/`：本機靜態 server 及固定允許清單的發布建置。
+`node scripts/verify-scopes.mjs` checks four real login flows, each enabled menu, scoped records, cross-scope routing, three languages, dark mode and 1920/768/390/320 layouts. `verify-files.mjs` checks actual PDF extraction, per-file errors and selective mapping. `verify-raster.mjs` checks local OCR and absence of external requests. `verify-camera.mjs` checks denied camera permission, file fallback and photo cleanup. These browser checks use the installed Brave executable and local port 3193.
 
-## 素材
-
-Azure Logo 由專案擁有者提供，原檔像素及比例保留。品牌與設計資產權利仍歸各自權利人，未另外授予通用素材授權。Noto Sans TC 使用 SIL Open Font License，詳見 `assets/OFL-NotoSansTC.txt`。
-
-## 動態與語言更新
-
-左側標題與說明於原位交叉淡入淡出，圖卡以 1.2 秒走下方弧線過渡：往左下淡出、從右下接入。藍色球以獨立的 32 秒循環平順環繞，左右各浮動 48px、向上 80px、向下 20px；兩軸錯開四分之一週期，連續帶出上下、左右與斜向移動，與 Slider 切換無關。後方三道橢圓波紋以 9 秒向外擴散並淡出，每道錯開 3 秒；背景與卡片浮動獨立運作，不因換頁重新啟動。快速點選會保留最後一個選擇，系統減少動態設定仍優先。簡體中文由 OpenCC 轉換後納入固定文案字典，無第三方請求。
+Live demo: https://notdesign.github.io/azure-virtual-bank-demo/

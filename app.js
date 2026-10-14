@@ -1,5 +1,6 @@
 import {zh,en} from './copy.js';
 import {zhCN,toSimplified} from './simplified.js';
+import {DEMO_ACCOUNTS,DEMO_PASSWORD,authenticate,findAccount,currentDemoPassword,resetPassword,resetDemoPasswords} from './demo-accounts.js';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const escapeHTML=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 // Every fresh visit starts in Traditional Chinese; selection stays within this session.
@@ -8,7 +9,16 @@ const t=key=>locale==='en'?(en[key]||key):locale==='zh-Hans'?(zhCN[key]||toSimpl
 const localizeChinese=s=>locale==='zh-Hans'?toSimplified(s):s;
 const bilingual=(a,b)=>locale==='en'?b:localizeChinese(a);
 const state={page:'login',email:'',password:'',newPassword:'',confirmPassword:'',demoPassword:'AzureDemo!2026',method:'email',digits:Array(6).fill(''),code:'381726',codeVersion:0,expires:0,resend:0,attempts:0,credentialAttempts:0,lockUntil:0,resetExpires:0,resetResend:0,verified:0,error:'',message:'',busy:false,lastActivity:Date.now()};
-let flowVersion=0;
+let flowVersion=0,cmsInstance=null,cmsMode='',cmsLoading=0;
+state.account=null;
+const roleLabels={cust:['客戶 eBanking','Customer eBanking'],l1:['一級代理','Level 1 Agent'],l2:['二級代理','Level 2 Agent'],hq:['全權管理者','Full Administrator']};
+async function renderIntegrated(mode){
+ $('.shell').classList.add('auth-hidden');$('#cms-host').hidden=false;
+ if(cmsInstance&&cmsMode===mode){cmsInstance.setLocale(locale);return;}
+ cmsInstance?.destroy();cmsInstance=null;const version=++cmsLoading;cmsMode=mode;
+ try{if(mode==='phone'){const {mountPhone}=await import('./cms/phone.js?v=20261014');if(version!==cmsLoading)return;cmsInstance=mountPhone({root:$('#cms-host'),locale,onExit:()=>{history.replaceState({},'',location.pathname+location.search);go('login')},onLocale:lang=>{locale=lang;}});}else{const {mountCMS}=await import('./cms/app.js?v=20261014');if(version!==cmsLoading||(mode!=='public'&&(state.verified!==2||!state.account)))return;cmsInstance=mountCMS({root:$('#cms-host'),account:mode==='public'?null:state.account,publicRoute:mode==='public'?location.hash:null,locale,onLocale:setLanguage,onLogout:()=>handleAction('logout'),onActivity:()=>state.lastActivity=Date.now()});}}
+ catch(error){console.error('CMS initialization failed',error);cmsInstance?.destroy();cmsInstance=null;cmsMode='';$('.shell').classList.remove('auth-hidden');$('#cms-host').hidden=true;go('network');}
+}
 const view=$('#view');
 const asset=(name,cls='')=>`<span class="icon ${cls}"><img src="assets/${name}" alt=""></span>`;
 const backIcon=()=>asset('13f3a.svg');
@@ -24,6 +34,10 @@ const passwordReady=()=>state.newPassword.length>=12&&/[a-z]/i.test(state.newPas
 const codeReady=()=>state.digits.every(d=>/^\d$/.test(d));
 function formError(){const message=state.error==='invalid-otp'?bilingual('驗證碼不正確，請重新輸入。您還有 '+(5-state.attempts)+' 次嘗試機會。','That code is incorrect. Please try again. '+(5-state.attempts)+' attempts remaining.'):state.error==='same-password'?bilingual('請使用與目前不同的新密碼。','Choose a password different from the current password.'):t(state.error);return state.error?`<div id="form-error">${notice(message,'error')}</div>`:''}
 function render(focus=true){
+  if(location.hash.startsWith('#/identity/')){void renderIntegrated('phone');return;}
+  if(/^#\/(apply|join)\//.test(location.hash)){void renderIntegrated('public');return;}
+  if(state.page==='workspace'&&state.verified===2&&state.account){void renderIntegrated('cms');return;}
+  cmsLoading++;cmsInstance?.destroy();cmsInstance=null;cmsMode='';$('.shell').classList.remove('auth-hidden');$('#cms-host').hidden=true;
   const p=state.page;view.className='form'+(['otp','expired'].includes(p)&&(state.error||state.message||p==='expired')?' compact':'');
   if(p==='login')view.innerHTML=`${progress(1)}${intro('Welcome back','Sign in to your Azure workspace.')}<form id="credentials-form" novalidate>${formError()}<div class="fields">${field('email','Work email','Enter your email address')}${field('password','Password','Enter your password',true)}</div><button class="primary" id="submit" ${!credentialsReady()||state.busy?'disabled':''}>${state.busy?bilingual('確認中…','Checking…'):t('Continue')}</button></form><div class="help-row"><span>${t('Need access?')}</span>${action('Contact administrator','recovery')}</div>`;
   else if(p==='methods')view.innerHTML=`${progress(2)}${intro('Verify it’s you','Choose how you’d like to verify your identity.')}<div class="methods">${[['email','Email verification','Send a code to a•••@example.com','af3b7.svg'],['sms','SMS verification','Text a code to +852 •••• 4821','9f8f4.svg'],['auth','Authenticator app','Use the code in your authenticator','ed81b.svg']].map(([m,title,desc,icon])=>`<button class="method" data-method="${m}"><span class="method-icon">${asset(icon)}</span><span class="method-copy"><strong>${t(title)}</strong><span>${t(desc)}</span></span>${asset('3e4c7.svg','method-chevron')}</button>`).join('')}</div><p class="small">${t('Only methods already set up for your account are shown.')}</p><button class="text-button" data-action="login">${backIcon()}${t('Back to sign in')}</button>`;
@@ -61,10 +75,10 @@ function tick(){
   if(state.page==='reset'&&remaining(state.resetExpires)===0)go('linkExpired');
   if(state.verified>0&&!['sessionExpired','locked','recovery','login'].includes(state.page)&&Date.now()-state.lastActivity>900000){state.verified=0;state.password='';go('sessionExpired')}
 }
-function resetDemo(){Object.assign(state,{email:'',password:'',newPassword:'',confirmPassword:'',demoPassword:'AzureDemo!2026',attempts:0,credentialAttempts:0,lockUntil:0,verified:0,expires:0,resend:0,resetExpires:0});go('login');}
+function resetDemo(){resetDemoPasswords();history.replaceState({},'',location.pathname+location.search);Object.assign(state,{account:null,email:'',password:'',newPassword:'',confirmPassword:'',demoPassword:DEMO_PASSWORD,attempts:0,credentialAttempts:0,lockUntil:0,verified:0,expires:0,resend:0,resetExpires:0});go('login');}
 function handleAction(id){
   if(id==='resend')return resend();
-  if(id==='logout'){state.verified=0;state.password='';return go('login')}
+  if(id==='logout'){state.verified=0;state.account=null;state.password='';history.replaceState({},'',location.pathname+location.search);return go('login')}
   if(id==='login'){if(state.lockUntil>Date.now())return go('locked');state.verified=0;return go('login')}
   if(id==='methods'){if(state.verified<1)return go('login');return go('methods')}
   if(id==='workspace'){if(state.verified<2)return go('login');return go('workspace')}
@@ -83,14 +97,14 @@ view.addEventListener('submit',async e=>{e.preventDefault();if(state.busy)return
   if(e.target.id==='credentials-form'){
     if(state.lockUntil>Date.now())return go('locked');if(!credentialsReady())return;state.busy=true;render(false);const version=++flowVersion;
     await new Promise(r=>setTimeout(r,420));if(version!==flowVersion)return;state.busy=false;
-    if(state.email.toLowerCase()!=='admin@example.com'||state.password!==state.demoPassword){state.credentialAttempts++;if(state.credentialAttempts>=5)return lock();return go('login',{error:'The email or password is incorrect. Please try again.'})}
-    state.verified=1;state.credentialAttempts=0;go('methods');
+    const account=authenticate(state.email,state.password);if(!account){state.credentialAttempts++;if(state.credentialAttempts>=5)return lock();return go('login',{error:'The email or password is incorrect. Please try again.'})}
+    state.account=account;state.demoPassword=currentDemoPassword(state.email);state.verified=1;state.credentialAttempts=0;go('methods');
   }else if(e.target.id==='otp-form'){
     if(!codeReady())return;if(state.method!=='auth'&&Date.now()>=state.expires)return go('expired');
     if(state.digits.join('')!==state.code){state.attempts++;if(state.attempts>=5)return lock();const error='invalid-otp';go('otp',{error,keepDigits:true});$('#digit-0').focus();$('#digit-0').select();return}
-    go('loading');const version=flowVersion;state.busy=true;await new Promise(r=>setTimeout(r,850));if(version!==flowVersion)return;state.verified=2;state.attempts=0;state.password='';go('success');
+    go('loading');const version=flowVersion;state.busy=true;await new Promise(r=>setTimeout(r,850));if(version!==flowVersion)return;state.verified=2;state.attempts=0;state.password='';go('workspace');
   }else if(e.target.id==='forgot-form'){if(!validEmail())return;state.resetExpires=Date.now()+900000;state.resetResend=Date.now()+30000;go('sent');
-  }else if(e.target.id==='reset-form'){if(Date.now()>=state.resetExpires)return go('linkExpired');if(!passwordReady())return;if(state.newPassword===state.demoPassword)return go('reset',{error:'same-password'});state.demoPassword=state.newPassword;state.newPassword='';state.confirmPassword='';state.password='';state.verified=0;state.resetExpires=0;go('resetDone')}
+  }else if(e.target.id==='reset-form'){if(Date.now()>=state.resetExpires)return go('linkExpired');if(!passwordReady())return;if(state.newPassword===currentDemoPassword(state.email))return go('reset',{error:'same-password'});resetPassword(state.email,state.newPassword);state.demoPassword=state.newPassword;state.newPassword='';state.confirmPassword='';state.password='';state.verified=0;state.account=null;state.resetExpires=0;go('resetDone')}
 });
 
 // Language, demo credentials and verification state stay in memory only.
@@ -103,15 +117,15 @@ document.addEventListener('click',e=>{if(!e.target.closest('.language'))closeLan
 
 const dialog=$('#demo-dialog');
 function renderDemo(){
-  $('#demo-content').innerHTML=`<p>${bilingual('這是互動設計示範，所有資料皆為虛構。驗證與重設流程只在此頁模擬，不會寄送郵件或簡訊。請勿輸入真實密碼。','This is an interactive design demo with fictional data. Verification and recovery are simulated locally. No email or SMS is sent. Do not enter a real password.')}</p><div class="demo-values"><span>${bilingual('示範帳戶','Demo account')}: <code>admin@example.com</code></span><span>${t('Password')}: <code>${escapeHTML(state.demoPassword)}</code></span><span>OTP: <code>${state.code}</code></span></div><button class="primary" data-demo="fill">${bilingual(['otp','expired'].includes(state.page)?'填入目前示範驗證碼':'填入示範帳戶','Fill demo '+(['otp','expired'].includes(state.page)?'code':'account'))}</button>${state.page==='sent'?`<button class="secondary" data-demo="reset-link">${bilingual('模擬開啟重設連結','Simulate opening reset link')}</button>`:''}<div class="demo-scenarios">${[['invalid','驗證碼錯誤','Invalid code'],['expired','驗證碼逾時','Expired code'],['locked','暫時鎖定','Locked account'],['network','網路異常','Network error'],['sessionExpired','連線逾時','Session expired'],['linkExpired','重設連結失效','Expired reset link']].map(([id,a,b])=>`<button class="scenario" data-demo="${id}">${bilingual(a,b)}</button>`).join('')}</div><button class="secondary" data-demo="restart">${bilingual('重新開始示範','Restart demo')}</button><p class="demo-note">${bilingual('電子郵件與簡訊 OTP：5 分鐘有效、重寄間隔 30 秒。連續錯誤 5 次暫停 15 分鐘。重設密碼後仍須完成 OTP。','Email / SMS codes last 5 minutes; resend cooldown is 30 seconds. Five failed attempts cause a 15-minute lock. Password reset still requires OTP verification.')}</p>`;
+  $('#demo-content').innerHTML=`<p>${bilingual('這是互動設計示範，所有資料皆為虛構。4 組帳號登入後會顯示各自的 CMS 權限。OTP、審批及邀請是本機示範，不會發送郵件或簡訊。','This is an interactive demo with fictional data. Four accounts open their own role-based CMS. OTP, approvals and invitations are simulated locally.')}</p><div class="demo-values"><span>${t('Password')}: <code>${DEMO_PASSWORD}</code></span><span>OTP: <code>${state.code}</code></span></div><div class="demo-accounts-list">${DEMO_ACCOUNTS.map(a=>`<button type="button" class="demo-account-option" data-demo-account="${a.email}"><strong>${bilingual(...roleLabels[a.role])}</strong><code>${a.email}</code></button>`).join('')}</div><button class="primary" data-demo="fill">${bilingual(['otp','expired'].includes(state.page)?'填入目前示範驗證碼':'填入示範帳戶','Fill demo '+(['otp','expired'].includes(state.page)?'code':'account'))}</button>${state.page==='sent'?`<button class="secondary" data-demo="reset-link">${bilingual('模擬開啟重設連結','Simulate opening reset link')}</button>`:''}<div class="demo-scenarios">${[['invalid','驗證碼錯誤','Invalid code'],['expired','驗證碼逾時','Expired code'],['locked','暫時鎖定','Locked account'],['network','網路異常','Network error'],['sessionExpired','連線逾時','Session expired'],['linkExpired','重設連結失效','Expired reset link']].map(([id,a,b])=>`<button class="scenario" data-demo="${id}">${bilingual(a,b)}</button>`).join('')}</div><button class="secondary" data-demo="restart">${bilingual('重新開始示範','Restart demo')}</button><p class="demo-note">${bilingual('電子郵件與簡訊 OTP：5 分鐘有效、重寄間隔 30 秒。連續錯誤 5 次暫停 15 分鐘。重設密碼後仍須完成 OTP。','Email / SMS codes last 5 minutes; resend cooldown is 30 seconds. Five failed attempts cause a 15-minute lock. Password reset still requires OTP verification.')}</p>`;
 }
 $('#demo-trigger').addEventListener('click',()=>{renderDemo();dialog.showModal()});$('#demo-close').addEventListener('click',()=>dialog.close());
-dialog.addEventListener('click',e=>{if(e.target===dialog){const b=dialog.getBoundingClientRect();if(e.clientX<b.left||e.clientX>b.right||e.clientY<b.top||e.clientY>b.bottom)dialog.close()}const a=e.target.closest('[data-demo]');if(!a)return;const id=a.dataset.demo;dialog.close();
+dialog.addEventListener('click',e=>{if(e.target===dialog){const b=dialog.getBoundingClientRect();if(e.clientX<b.left||e.clientX>b.right||e.clientY<b.top||e.clientY>b.bottom)dialog.close()}const a=e.target.closest('[data-demo],[data-demo-account]');if(!a)return;dialog.close();if(a.dataset.demoAccount){state.email=a.dataset.demoAccount;state.password=currentDemoPassword(state.email);state.verified=0;state.account=null;go('login');return;}const id=a.dataset.demo;
   if(id==='restart')return resetDemo();
-  if(id==='fill'){if(state.page==='otp'){putDigits(0,state.code);return}if(state.page==='expired'){resend();putDigits(0,state.code);return}if(state.lockUntil>Date.now()){return go('locked')}state.email='admin@example.com';state.password=state.demoPassword;go('login');return}
+  if(id==='fill'){if(state.page==='otp'){putDigits(0,state.code);return}if(state.page==='expired'){resend();putDigits(0,state.code);return}if(state.lockUntil>Date.now()){return go('locked')}state.email=findAccount(state.email)?.email||DEMO_ACCOUNTS[0].email;state.password=currentDemoPassword(state.email);state.verified=0;state.account=null;go('login');return}
   if(id==='reset-link'){if(Date.now()>=state.resetExpires)return go('linkExpired');return go('reset')}
   if(id==='locked')return lock();
-  if(['invalid','expired','network'].includes(id)){state.verified=1;state.method='email';state.expires=Date.now()+300000;state.resend=0;state.code='381726';state.attempts=id==='invalid'?1:0}
+  if(['invalid','expired','network'].includes(id)){state.account={...(findAccount(state.email)||DEMO_ACCOUNTS[0])};state.email=state.account.email;state.verified=1;state.method='email';state.expires=Date.now()+300000;state.resend=0;state.code='381726';state.attempts=id==='invalid'?1:0}
   if(id==='invalid')return go('otp',{error:'invalid-otp'});
   if(id==='sessionExpired')state.verified=0;go(id);
 });
@@ -169,4 +183,5 @@ function scheduleCarousel(){clearInterval(carouselTimer);if(!paused&&!reduceMoti
 function updateMotionButton(){const b=$('#motion-toggle');b.disabled=reduceMotion.matches;b.title=reduceMotion.matches?bilingual('已依系統設定減少動態效果','Reduced motion follows your system preference'):'';b.setAttribute('aria-label',paused?bilingual('播放動畫','Play animation'):bilingual('暫停動畫','Pause animation'));b.setAttribute('aria-pressed',String(paused));b.firstElementChild.textContent=paused?'▷':'Ⅱ';$('.brand').classList.toggle('paused',paused)}
 $$('.dot[data-slide]').forEach(b=>b.addEventListener('click',()=>{changeSlide(Number(b.dataset.slide));scheduleCarousel()}));$('#motion-toggle').addEventListener('click',()=>{paused=!paused;updateMotionButton();scheduleCarousel()});reduceMotion.addEventListener('change',e=>{paused=e.matches;if(e.matches)renderSlide();updateMotionButton();scheduleCarousel()});
 document.addEventListener('keydown',()=>state.lastActivity=Date.now());document.addEventListener('pointerdown',()=>state.lastActivity=Date.now());
+window.addEventListener('hashchange',()=>{if(location.hash.startsWith('#/identity/')||/^#\/(apply|join)\//.test(location.hash))render();else if(cmsMode==='phone'||cmsMode==='public')go(state.verified===2?'workspace':'login');});
 setLanguage(locale);setInterval(tick,1000);scheduleCarousel();
