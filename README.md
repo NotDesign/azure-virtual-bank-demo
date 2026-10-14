@@ -32,3 +32,15 @@ ID front/back and portrait capture use the AllinPay camera workflow: consent, ca
 `node scripts/verify-scopes.mjs` checks four real login flows, each enabled menu, scoped records, cross-scope routing, three languages, dark mode and 1920/768/390/320 layouts. `verify-files.mjs` checks actual PDF extraction, per-file errors and selective mapping. `verify-raster.mjs` checks local OCR and absence of external requests. `verify-camera.mjs` checks denied camera permission, file fallback and photo cleanup. These browser checks use the installed Brave executable and local port 3193.
 
 Live demo: https://notdesign.github.io/azure-virtual-bank-demo/
+
+## Updated application flow
+
+1. Upload any available document and recognize its content. One valid file is enough to start.
+2. KYC ID and portrait capture through a 10-minute phone QR link. A recognized, reviewed director ID skips front/back capture; portrait capture remains. The phone opens the appropriate camera after consent.
+3. Review and complete company, directors, UBO, contact and business data.
+4. Choose available accounts.
+5. Confirm and submit a session-local demo application.
+
+Each step has an explicit fictional Demo fill button below Clear and restart in the operations rail. It is separate from OCR and production verification. Recognition candidates remain unchecked until reviewed; one Select all / Deselect all button toggles the review selection. Uploaded originals remain in memory for the corresponding CS workbench and clear when the session ends. Notifications open their scoped entity and mark pending fields, documents or actions.
+
+Hong Kong BR recognition uses label-based region recovery, including scans with a corrupt hidden PDF text layer. Documents are classified from content; identity roles require confirmation. No private customer document is included in the repository or distribution. `verify-feedback.mjs` checks notifications, required markers, dropdowns, logout, metrics and the five-step Demo flow.

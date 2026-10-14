@@ -1,8 +1,8 @@
 // Shared AllinPay PDF / OCR engine; each document fails independently.
 const E=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const TYPE={'140101':'BR','140201':'CI','141101':'NAR1','140401':'BANK','141301':'BANK'};
-const KEY={merchantEnglishName:'companyName',merchantName:'companyNameZh',registerCertNo:'brNo',registerCertPeriod:'certExpiry',registerCertName:'certName',crCode:'crNo','directors[0].name':'directorName','directors[0].idcardNo':'idNo','directors[0].birthDay':'birthDate',cardName:'withdrawalName',cardNo:'withdrawalAccount',cardBankCode:'bankCode',addrStreet:'address',addrStreetEn:'addressEn'};
-const LABEL={companyName:'企業名稱',companyNameZh:'企業中文名稱',brNo:'商業登記號',certExpiry:'商業登記到期日',certName:'證書登記名称',crNo:'公司註冊編號',directorName:'董事姓名',idNo:'身份證號碼',birthDate:'出生日期',withdrawalName:'銀行帳戶名稱',withdrawalAccount:'銀行帳號',bankCode:'銀行代碼',address:'地址',addressEn:'英文地址'};
+const TYPE={'IDENTITY':'ID','140101':'BR','140201':'CI','141101':'NAR1','140401':'BANK','141301':'BANK'};
+const KEY={identityName:'identityName',identityNo:'identityNo',merchantEnglishName:'companyName',merchantName:'companyNameZh',registerCertNo:'brNo',registerCertPeriod:'certExpiry',registerCertName:'certName',crCode:'crNo','directors[0].name':'directorName','directors[0].idcardNo':'idNo','directors[0].birthDay':'birthDate',cardName:'withdrawalName',cardNo:'withdrawalAccount',cardBankCode:'bankCode',addrStreet:'address',addrStreetEn:'addressEn'};
+const LABEL={identityName:'證件姓名',identityNo:'身份證號碼',companyName:'企業名稱',companyNameZh:'企業中文名稱',brNo:'商業登記號',certExpiry:'商業登記到期日',certName:'證書登記名称',crNo:'公司註冊編號',directorName:'董事姓名',idNo:'身份證號碼',birthDate:'出生日期',withdrawalName:'銀行帳戶名稱',withdrawalAccount:'銀行帳號',bankCode:'銀行代碼',address:'地址',addressEn:'英文地址'};
 export class DocumentBatch{
  constructor(onChange){this.files=[];this.selected=null;this.page=1;this.rotation=0;this.onChange=onChange;this.controller=new AbortController();this.engine=null;this.running=false;this.view=null;this.tick=0;}
  notify(){if(this.tick)return;this.tick=setTimeout(()=>{this.tick=0;this.onChange();},200);}
@@ -11,7 +11,14 @@ export class DocumentBatch{
  async loadEngine(){if(!this.engine){const [engine,parser]=await Promise.all([import('../br-engine/engine.mjs'),import('../br-engine/multi-document.mjs')]);this.engine={...engine,...parser};}return this.engine;}
  async run(){if(this.running)return;this.running=true;const pending=this.files.filter(f=>['等待辨識','辨識失敗'].includes(f.status)&&!f.error);let cursor=0;const runOne=async()=>{while(cursor<pending.length&&!this.controller.signal.aborted){const item=pending[cursor++];item.status='辨識中';item.progress=0;this.notify();try{
    const engine=await this.loadEngine();item.doc=await engine.loadDocument(item.file);item.pages=item.doc.pages;const candidates=[];let headings='';
-   for(let p=1;p<=item.pages;p++){if(this.controller.signal.aborted)throw new DOMException('Aborted','AbortError');const {canvas,text}=await item.doc.render(p);const result=await engine.extractDocumentText({canvas,text,signal:this.controller.signal,onProgress:n=>{item.progress=(p-1+n)/item.pages;this.notify();}});item.recognizedText=(item.recognizedText||'')+'\n'+result.text;headings+='\n'+result.text;const classification=engine.classifyDocument(result.text);let type=TYPE[classification.id]||'';const extracted=engine.extractCandidates(result.text,type||'AUTO');
+   for(let p=1;p<=item.pages;p++){if(this.controller.signal.aborted)throw new DOMException('Aborted','AbortError');const {canvas,text}=await item.doc.render(p);let result=await engine.extractDocumentText({canvas,text,signal:this.controller.signal,onProgress:n=>{item.progress=(p-1+n)/item.pages;this.notify();}});const classification=engine.classifyDocument(result.text);let type=TYPE[classification.id]||'';let extracted;
+    // BR scans can contain a corrupt hidden text layer. Read the printed value
+    // regions instead of treating any available PDF text as reliable.
+    if(type==='BR'||/BUSINESS\s+REGISTRATION\s+(?:ORDINANCE|REGULATIONS)|Date of Commencement.*Date of Expiry/is.test(result.text)){
+     const br=await engine.recognizeDocument({canvas,text:result.text,page:p,forceOCR:true,signal:this.controller.signal,onProgress:n=>{item.progress=(p-1+n.progress)/item.pages;this.notify();}});
+     result={text:br.rawText||'',method:br.method,confidence:br.ocrConfidence};extracted=engine.candidatesFromBR(br);if(br.recognized){type='BR';headings+='\nBusiness Registration Certificate';}item.warnings=br.warnings;
+    }else extracted=engine.extractCandidates(result.text,type||'AUTO');
+    item.recognizedText=(item.recognizedText||'')+'\n'+result.text;headings+='\n'+result.text;
     for(const c of extracted){const key=KEY[c.key];if(!key||!c.value)continue;if(!candidates.some(x=>x.key===key&&x.value===c.value))candidates.push({key,label:LABEL[key],value:String(c.value),file:item.file.name,page:p,selected:false,confidence:result.confidence,method:result.method});}
     item.progress=p/item.pages;canvas.width=1;this.notify();
    }

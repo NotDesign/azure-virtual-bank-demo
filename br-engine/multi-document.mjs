@@ -16,6 +16,7 @@ export function classifyDocument(text,{brRecognized=false}={}) {
  const raw=String(text||'').normalize('NFKC');
  const rules=[
   ['140101',/Business\s*(?:\/\s*Branch\s*)?Registration\s+Certificate|商業.{0,5}登記證/i],
+  ['IDENTITY',/Hong Kong Identity Card|IDENTITY CARD|香港身[份分]證|身[份分]證/i],
   ['140201',/Certificate\s+of\s+Incorporation|公司註冊證書/i],
   ['140301',/Company\s+Search\s+Report|公司(?:註冊登記)?查冊/i],
   ['141101',/Annual\s+Return|\bNAR1\b|\bNNC1\b|周年申報表/i],
@@ -51,6 +52,14 @@ export function extractCandidates(text,type='AUTO') {
   function labelled(pattern){for(let i=0;i<lines.length;i++){const m=lines[i].match(pattern);if(m)return(m[1]||lines[i+1]||'').trim();}return '';}
   if(permits('CI'))add('crCode',labelled(/^(?:Company (?:Registration )?Number|Certificate No\.?|公司註冊編號)\s*[:：#]\s*(.*)$/i).replace(/\s/g,''));
   if(permits('NAR1'))add('directors[0].name',labelled(/^(?:Director Name|董事姓名)\s*[:：]\s*(.*)$/i));
+  // Capture identity data without assigning a corporate role. The review UI
+  // explicitly asks who the document belongs to before mapping it.
+  if(permits('ID')){
+    const name=labelled(/^(?:Name(?: in English)?|English Name|中文姓名|姓名)\s*(?:[:：]\s*(.*))?$/i);
+    const id=labelled(/^(?:Identity Card (?:No\.?|Number)|身份證號碼|身分證號碼)\s*[:：]\s*(.*)$/i)||raw.match(/\b[A-Z]{1,2}\s*\d{6}\s*\([0-9A]\)/i)?.[0]||'';
+    const printedName=name||lines.find(line=>/^[A-Z][A-Z '\-]+,\s*[A-Z][A-Z '\-]+$/.test(line))||'';if(printedName)add('identityName',printedName);
+    if(/^[A-Z]{1,2}\d{6}\([0-9A]\)$/i.test(id.replace(/\s/g,'')))add('identityNo',id.replace(/\s/g,''));
+  }
   // A plain identity card does not establish a company role. Never infer director.
   if(permits('ID')&&/Director(?:'s)?\s+Identity|董事身[份分]證/i.test(raw)){
     add('directors[0].name',labelled(/^(?:Name|姓名)\s*[:：]\s*(.*)$/i));
