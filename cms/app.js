@@ -1,7 +1,10 @@
 export function mountCMS({root,account,publicRoute,locale,onLocale,onLogout,onActivity}){
  const abort=new AbortController();const frame=document.createElement('iframe');
  frame.className='cms-confirmed-frame';frame.title='Azure CMS';frame.allow='camera';
- frame.src='cms/confirmed/index.html?v=20261020-payments-fx'+(publicRoute||`#/${account.role}/${account.role==='cust'?'home':'dashboard'}`);
+ const frameURL=new URL('cms/confirmed/index.html',location.href);
+ frameURL.searchParams.set('v',new URL(location.href).searchParams.get('v')||'20261020-payments-fx2');
+ frameURL.hash=publicRoute||`#/${account.role}/${account.role==='cust'?'home':'dashboard'}`;
+ frame.src=frameURL.href;
  root.className='cms cms-confirmed-host';root.replaceChildren(frame);root.hidden=false;
  const send=()=>frame.contentWindow?.postMessage({type:'azure-session',account,locale,publicRoute,base:new URL('./',location.href).href},location.origin);
  frame.addEventListener('load',send,{signal:abort.signal});

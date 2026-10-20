@@ -7,6 +7,9 @@
 .review-customers>.tbl-wrap>table th:nth-child(4),.review-customers>.tbl-wrap>table td:nth-child(4){min-width:100px;white-space:normal}
 .review-customers>.tbl-wrap>table th:last-child,.review-customers>.tbl-wrap>table td:last-child{width:1%;min-width:84px;white-space:nowrap}
 .review-customers>.tbl-wrap>table td:last-child:has(.row-acts>:nth-child(2)){min-width:228px}
+.review-applications>.tbl-wrap{width:100%;max-width:100%;overflow-x:auto;overscroll-behavior-x:contain}
+.review-applications>.tbl-wrap>table{width:100%;min-width:1060px;table-layout:auto}
+.review-applications>.tbl-wrap>table th:last-child,.review-applications>.tbl-wrap>table td:last-child{width:1%;min-width:84px;white-space:nowrap}
 .review-customers .row-acts{display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;justify-content:flex-start;gap:8px;min-height:36px}
 .review-customers .row-acts>.btn{flex:0 0 auto;width:auto;min-width:56px;margin:0;white-space:nowrap}
 .review-customers .review-filters,.review-applications .review-filters{display:flex;flex-wrap:wrap;align-items:flex-end;gap:14px 16px}

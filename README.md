@@ -61,7 +61,7 @@ Full administrators now have a **Customer eBanking** sidebar group with all nine
 
 Only AZ100001 has the complete banking fixture. Other customers show their own supplied accounts and transactions; missing balances remain unavailable, and the demo never reuses another customer's funds, recipients or withdrawal accounts. No live banking service is connected.
 
-Target search and freeze filters share one row where space permits. Pricing tabs, customer selection and action buttons align. Customer tables fill their cards, row actions are horizontal, and filter buttons use their natural size. Search fields have a separate clear-text X. Narrow screens wrap filters and scroll wide tables inside the card.
+Target search and freeze filters share one row where space permits. Pricing tabs, customer selection and action buttons align. Customer and application tables fill their cards, row actions are horizontal, and filter buttons use their natural size. Search fields have a separate clear-text X. Narrow screens wrap filters and scroll wide tables inside the card.
 
 `verify-admin-customer.mjs` checks the administrator workspace, customer isolation and retained state. The camera capture UI and application wizard remain unchanged.
 
