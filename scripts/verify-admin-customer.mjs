@@ -11,14 +11,27 @@ async function login(role){
  await page.goto(base);await page.locator('#email').fill(role==='hq'?'stephen@ourbank.example':'ops@ganghuitong.example');await page.locator('#password').fill('AzureDemo!2026');await page.locator('#submit').click();await page.locator('[data-method=email]').click();
  for(let i=0;i<6;i++)await page.locator('#digit-'+i).fill('381726'[i]);await page.locator('#submit').click();
  const host=page.locator('.cms-confirmed-frame');await host.waitFor();const frame=await(await host.elementHandle()).contentFrame();
- await frame.waitForFunction(()=>window.AzureBridge?.account&&document.querySelector('.page-title')&&window.AzureFiles);
+ await frame.waitForFunction(()=>document.readyState==='complete'&&window.AzureBridge?.account&&document.querySelector('.page-title')&&window.AzureFiles&&window.AzureWizard);
  return {page,frame};
 }
 async function child(frame){
- await frame.locator('.admin-customer-frame').waitFor();
- const inner=await(await frame.locator('.admin-customer-frame').elementHandle()).contentFrame();
- await inner.waitForFunction(()=>window.AzureAdminChild&&window.AzureBridge?.account?.role==='cust'&&document.querySelector('.page-title'));
- return inner;
+ const deadline=Date.now()+30000;
+ let lastError;
+ while(Date.now()<deadline){
+  let element;
+  try{
+   await frame.waitForFunction(()=>{
+    const el=document.querySelector('.admin-customer-frame'),w=el?.contentWindow;
+    try{return el?.isConnected&&w?.document.readyState==='complete'&&w.AzureFiles&&w.AzureWizard&&w.AzureAdminChild&&w.AzureBridge?.account?.role==='cust'&&w.AzureAdminChild.customerId===document.querySelector('#admin-customer-select')?.value&&w.AzureBridge.state.page===AzureBridge.state.page.replace(/^customer-/,'')&&w.document.querySelector('.page-title');}catch{return false;}
+   },null,{timeout:Math.max(1,Math.min(1500,deadline-Date.now()))});
+   element=await frame.locator('.admin-customer-frame').elementHandle();
+   const inner=element&&await element.contentFrame();
+   if(!inner||inner.isDetached())continue;
+   if(await element.evaluate(el=>el.isConnected&&el===document.querySelector('.admin-customer-frame')))return inner;
+  }catch(error){lastError=error;}
+  finally{await element?.dispose();}
+ }
+ throw new Error('Current customer iframe did not finish attaching and initializing within 30 seconds',{cause:lastError});
 }
 async function route(frame,key){await frame.evaluate(key=>location.hash='#/hq/customer-'+key,key);await frame.waitForFunction(key=>S.page==='customer-'+key,key);return child(frame);}
 try{
