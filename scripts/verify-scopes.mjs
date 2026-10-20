@@ -4,13 +4,22 @@ const browser=await chromium.launch({headless:true,executablePath:'/Applications
 const errors=[],fails=[],report={scopes:[],screens:[]};
 const emails={cust:'finance@starocean.example',l1:'ops@ganghuitong.example',l2:'chan@chanstudio.example',hq:'stephen@ourbank.example'};
 const check=(value,label)=>{if(!value)fails.push(label);};
-async function login(page,email){await page.goto('http://127.0.0.1:3193/');await page.locator('#email').fill(email);await page.locator('#password').fill('AzureDemo!2026');await page.locator('#submit').click();await page.locator('[data-method=email]').click();for(let i=0;i<6;i++)await page.locator('#digit-'+i).fill('381726'[i]);await page.locator('#submit').click();await page.locator('.cms-confirmed-frame').waitFor();const frame=page.frames().find(f=>f.url().includes('/confirmed/'));await frame.waitForSelector('.page-title');return frame;}
+async function login(page,email){await page.goto('http://127.0.0.1:3193/');await page.locator('#email').fill(email);await page.locator('#password').fill('AzureDemo!2026');await page.locator('#submit').click();await page.locator('[data-method=email]').click();for(let i=0;i<6;i++)await page.locator('#digit-'+i).fill('381726'[i]);await page.locator('#submit').click();await page.locator('.cms-confirmed-frame').waitFor();await page.waitForFunction(()=>document.querySelector('iframe')?.contentWindow?.location.pathname.includes('/confirmed/'));const frame=page.frames().find(f=>f.url().includes('/confirmed/'));await frame.waitForSelector('.page-title');await frame.waitForFunction(()=>document.readyState==='complete'&&window.AzureFiles&&window.AzureWizard&&window.AzureReviewAgents?.ready);await frame.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>resolve())));return frame;}
 for(const [role,email] of Object.entries(emails)){
  const page=await browser.newPage({viewport:{width:1920,height:1080}});page.on('pageerror',e=>errors.push(role+': '+e.message));page.on('requestfailed',r=>errors.push(role+' request: '+r.url()));
  const f=await login(page,email);await page.waitForTimeout(1200);
  const paths=await f.locator('.sidebar .nav a:not(.disabled)').evaluateAll(es=>es.map(a=>a.getAttribute('href')));
  check(await f.locator('.portal-switch').count()===0,role+' role switch absent');
- check(await f.locator('.public-links button').count()===2,role+' two public buttons');
+ check(await f.locator('.header .public-links button').count()===(role==='l2'?1:2),role+' scoped public buttons');
+ const joinButtons=f.locator('.header .public-links button').filter({hasText:/代理.*[注註][册冊]|registration/i});
+ if(role==='l2')check(await joinButtons.count()===0,'l2 has no agent registration entry');
+ if(role==='l1'){
+  check((await joinButtons.innerText()).includes('二級')||(await joinButtons.innerText()).includes('Level 2'),'l1 entry identifies level 2 registration');
+  const popupPromise=page.waitForEvent('popup');await joinButtons.click();const popup=await popupPromise;await popup.waitForLoadState();
+  const ownOrg=await f.evaluate(()=>ME.l1.org);const code=popup.url().split('#/join/')[1]?.split('/')[0];
+  const invitation=await f.evaluate(code=>AGENT_LINKS.find(l=>l.code===code),code);
+  check(invitation?.level===2&&invitation?.org===ownOrg,'l1 join entry belongs to its own level 1 organization');await popup.close();
+ }
  for(const path of paths){await f.evaluate(p=>location.hash=p,path);await page.waitForTimeout(100);check(await f.locator('.page-title').count()>0,role+' page title '+path);const scroll=await f.evaluate(()=>({body:document.body.scrollWidth,view:innerWidth}));check(scroll.body<=scroll.view,role+' body overflow '+path);}
  const scope=await f.evaluate(()=>({portal:AzureBridge.state.portal,customers:custsInScope().map(c=>c.id),transactions:txsInScope().length,apps:appsInScope().map(a=>a.id)}));
  if(role==='cust')check(scope.customers.join(',')==='AZ100001','cust only owns one customer');

@@ -1,0 +1,40 @@
+/* Scoped review additions; existing application and camera layouts are unchanged. */
+.review-agent-search { display:grid;gap:12px;margin-bottom:16px; }
+.review-agent-search>label { font-size:14px;font-weight:600; }
+.review-agent-selects { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px; }
+.review-agent-selects .select { padding-left:10px!important;font-size:13px;padding-right:28px!important; }
+.review-filter-result { display:flex;align-items:center;justify-content:space-between;gap:8px; }
+.review-agent-tree ul { padding-left:12px;margin-left:6px; }
+.review-agent-root { display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;padding:8px 0 14px; }
+.btn.review-agent-node { width:100%;justify-content:flex-start;text-align:left;gap:8px;margin:4px 0;padding:10px 8px;min-height:60px;border-radius:10px;white-space:normal;background:transparent; }
+.btn.review-agent-node:hover { background:var(--color-surface-2); }
+.btn.review-agent-node.on { background:var(--accent-soft);border-color:var(--accent); }
+.review-agent-node .badge { padding:2px 6px;flex:none;font-size:12px; }
+.review-agent-name { flex:1;min-width:0;overflow-wrap:anywhere;font-size:13px;line-height:20px; }
+.review-agent-name b { font-weight:500; }
+.review-agent-name small { display:block;color:var(--color-text-muted);font-size:12px; }
+.review-agent-count { flex:none;font-size:12px;color:var(--color-text-muted); }
+.review-agent-context>.review-agent-node { border-style:dashed; }
+.review-agent-context>.review-agent-node .review-agent-name { opacity:.65; }
+.review-agent-tree li[hidden],.review-risk-list [hidden],.modal .field[hidden] { display:none!important; }
+.review-recruit-result { display:grid;grid-template-columns:144px minmax(0,1fr);gap:20px;align-items:start; }
+.review-recruit-result p { margin:8px 0;overflow-wrap:anywhere; }
+.review-recruit-result b { overflow-wrap:anywhere; }
+.review-l2-created { margin-top:20px; }
+.review-created-row { display:flex;justify-content:space-between;align-items:center;gap:16px;padding:12px 0;border-bottom:1px solid var(--color-divider); }
+.review-created-row:first-child { padding-top:0; }
+.review-created-row:last-child { border-bottom:0;padding-bottom:0; }
+.review-created-row>div { min-width:0;overflow-wrap:anywhere; }
+.review-created-row small { display:block;color:var(--color-text-muted);margin-top:4px; }
+.review-risk-tabs { padding:0 0 12px; }
+.review-risk-list { display:grid;gap:8px;max-height:min(340px,40dvh);overflow-y:auto;overscroll-behavior:contain;border:1px solid var(--color-divider);border-radius:12px;padding:8px; }
+.review-risk-option { display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--color-divider);border-radius:10px;cursor:pointer;min-height:64px; }
+.review-risk-option:hover { background:var(--color-surface-2); }
+.review-risk-option:has(input:checked) { background:var(--accent-soft);border-color:var(--accent); }
+.review-risk-option>input[type=radio] { accent-color:var(--accent);width:18px;height:18px;flex:none;margin:0; }
+.review-risk-option>span:nth-child(2) { min-width:0;flex:1;overflow-wrap:anywhere; }
+.review-risk-option small { display:block;color:var(--color-text-muted);font-size:12px;margin-top:3px; }
+.review-risk-option .badge { flex:none;font-size:12px;padding:2px 6px; }
+@media (max-width:1399px) { .review-agents-layout { grid-template-columns:minmax(280px,1fr) minmax(0,2fr)!important; } }
+@media (max-width:1099px) { .review-agents-layout { grid-template-columns:minmax(0,1fr)!important; }.review-agent-directory { max-height:520px;overflow-y:auto; } }
+@media (max-width:599px) { .review-agent-directory { padding:16px; }.review-recruit-result { grid-template-columns:minmax(0,1fr); }.review-recruit-result>.qr { margin:auto; }.review-created-row { align-items:flex-start;flex-direction:column;gap:10px; }.review-risk-option { padding:10px;gap:8px; }.review-risk-option .badge { font-size:11px; }.review-agent-selects .select { font-size:14px; } }

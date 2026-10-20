@@ -44,3 +44,13 @@ Live demo: https://notdesign.github.io/azure-virtual-bank-demo/
 Each step has an explicit fictional Demo fill button below Clear and restart in the operations rail. It is separate from OCR and production verification. Recognition candidates remain unchecked until reviewed; one Select all / Deselect all button toggles the review selection. Uploaded originals remain in memory for the corresponding CS workbench and clear when the session ends. Notifications open their scoped entity and mark pending fields, documents or actions.
 
 Hong Kong BR recognition uses label-based region recovery, including scans with a corrupt hidden PDF text layer. Documents are classified from content; identity roles require confirmation. No private customer document is included in the repository or distribution. `verify-feedback.mjs` checks notifications, required markers, dropdowns, logout, metrics and the five-step Demo flow.
+
+## 2026-10-20 review update
+
+The customer detail action **Adjust rates** opens a dialog locked to that customer. The same dialog serves the pricing page. Blank, nonnumeric and below-floor rates are rejected. Saving creates or updates unsent requests; active prices remain unchanged until the existing channel-confirmation simulation. Requests already sent cannot be overwritten. Individual and company customer profiles can be created as session-local drafts in the authenticated agent's scope; this does not open accounts or complete KYC.
+
+Agent trees and document-request target pickers support search and filters. HQ can generate a level 2 recruitment link for a chosen level 1 agent; the level 1 remains the reviewer. Level 1's header links to its own level 2 registration; level 2 has no agent-registration shortcut. Application lists support name/ID, source, ownership and inclusive date filters.
+
+Customer payments support inline recipient entry while preserving the payment form. New recipients remain drafts or pending approval, with an explicit separate Demo approval action. Account numbers remain strings. The FX overview uses the source currency totals for available and frozen funds, lists linked bank accounts and updates after a simulated exchange; individual bank-account balances are not supplied by the source data.
+
+`review-company.js`, `review-agents.js` and `review-payments.js` isolate these changes. The previously accepted mobile camera toolbar and five-step application wizard were not changed. Run `verify-review-company.mjs`, `verify-review-agents.mjs`, `verify-review-payments.mjs` and `verify-scopes.mjs` for the review update. Reports and screenshots are local under `.design-build/review-20261020/` and are not part of the public site.

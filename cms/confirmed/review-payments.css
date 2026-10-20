@@ -1,0 +1,37 @@
+.rp-recipient-picker{display:flex;align-items:center;gap:8px;min-width:0}
+.rp-recipient-picker>.select{flex:1;min-width:0;width:0}
+.rp-add-recipient{flex:none;gap:6px;padding:0 12px;white-space:nowrap}
+.rp-add-recipient svg{width:16px;height:16px}
+.rp-new-recipient{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:12px;border:1px solid var(--color-divider,#ccd8e9);border-radius:12px;background:var(--color-surface-2,#f4f7fc)}
+.rp-new-recipient>div{flex:1 1 160px;min-width:0}
+.rp-new-recipient strong{overflow-wrap:anywhere;margin-right:8px}
+.rp-new-recipient p{margin:6px 0 0}
+.rp-balances{margin-bottom:20px}
+.rp-balances .card-head{align-items:start;gap:16px}
+.rp-balances .card-head p{margin:8px 0 0;max-width:780px;line-height:1.6}
+.rp-balance-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:16px;padding:0 24px 24px}
+.rp-balance-card{min-width:0;padding:18px;border:1px solid var(--color-divider,#ccd8e9);border-radius:12px;background:var(--color-surface-2,#f4f7fc)}
+.rp-balance-heading{display:flex;align-items:center;gap:8px;min-height:28px}
+.rp-balance-heading .flag{margin-right:0}
+.rp-balance-values{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px 12px;margin:18px 0;font-size:14px}
+.rp-balance-values dt{color:var(--color-text-muted,#52647d)}
+.rp-balance-values dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.rp-balance-values dd:first-of-type{font-size:20px;font-weight:700;line-height:1}
+.rp-balance-values dt:last-of-type,.rp-balance-values dd:last-of-type{padding-top:9px;border-top:1px solid var(--color-divider,#ccd8e9)}
+.rp-linked-accounts>summary{width:100%;min-height:36px;justify-content:center;cursor:pointer;list-style:none}
+.rp-linked-accounts>summary::-webkit-details-marker{display:none}
+.rp-linked-accounts>summary::after{content:'⌄';margin-left:6px}
+.rp-linked-accounts[open]>summary::after{content:'⌃'}
+.rp-linked-account{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px 8px;padding-top:14px;overflow-wrap:anywhere}
+.rp-linked-account>small{grid-column:1/-1;line-height:1.5}
+.rp-linked-account>strong{font-size:13px}
+.rp-counterparty-form h4{margin:24px 0 14px;font-size:16px}
+.rp-counterparty-form>.small{margin-top:0;line-height:1.7}
+.rp-counterparty-form .form-grid{align-items:start}
+.rp-counterparty-form .field{min-width:0}
+.rp-counterparty-form .field>small{overflow-wrap:anywhere;line-height:1.6}
+.rp-counterparty-form input[aria-invalid=true]{border-color:#c43636}
+.rp-type-switch{margin:16px 0}
+.rp-form-error{margin-top:16px;padding:12px;border:1px solid #df9999;border-radius:10px;color:#9b2323;background:#fff3f3;line-height:1.6}
+.rp-counterparty-status{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:20px}
+@media(max-width:599px){.rp-balance-grid{padding:0 16px 16px;gap:12px}.rp-balance-card{padding:16px}.rp-add-recipient{padding:0 10px}.rp-recipient-picker{gap:6px}.rp-balances .card-head{flex-wrap:wrap}.rp-balances .card-head .card-sub{white-space:normal}}
