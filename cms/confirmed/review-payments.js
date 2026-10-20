@@ -35,6 +35,7 @@
   const sourceFx = PAGES['cust:fx'];
   PAGES['cust:fx'] = function () {
     const html = sourceFx();
+    if (!bal()) return html;
     const balances = Object.entries(bal());
     const overview = `<section class="card rp-balances" aria-labelledby="rp-balances-title"><div class="card-head"><div><h3 class="card-title" id="rp-balances-title">${T('戶口結存概況', '户口结存概况', 'Account balance overview')}</h3><p class="small muted">${T('按幣種匯總；對應銀行戶口列於下方，未分配個別戶口餘額。', '按币种汇总；对应银行户口列于下方，未分配个别户口余额。', 'Balances are aggregated by currency. Linked bank accounts are listed below; individual account balances are not supplied.')}</p></div><span class="card-sub">${balances.length} ${T('個幣種', '个币种', 'currencies')}</span></div><div class="rp-balance-grid">${balances.map(([ccy, b]) => {
       const accounts = myAccts().filter(a => a.ccy === ccy);

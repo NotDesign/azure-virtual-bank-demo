@@ -54,3 +54,13 @@ Agent trees and document-request target pickers support search and filters. HQ c
 Customer payments support inline recipient entry while preserving the payment form. New recipients remain drafts or pending approval, with an explicit separate Demo approval action. Account numbers remain strings. The FX overview uses the source currency totals for available and frozen funds, lists linked bank accounts and updates after a simulated exchange; individual bank-account balances are not supplied by the source data.
 
 `review-company.js`, `review-agents.js` and `review-payments.js` isolate these changes. The previously accepted mobile camera toolbar and five-step application wizard were not changed. Run `verify-review-company.mjs`, `verify-review-agents.mjs`, `verify-review-payments.mjs` and `verify-scopes.mjs` for the review update. Reports and screenshots are local under `.design-build/review-20261020/` and are not part of the public site.
+
+## Administrator access and compact layouts
+
+Full administrators now have a **Customer eBanking** sidebar group with all nine customer functions, including payments, FX, statements, counterparties and team settings. Select the customer in the workspace or open it from customer details. The administrator remains signed in to HQ. Customer drafts and financial demo state survive workspace navigation and customer changes within this session; new records identify the HQ actor and the selected customer separately.
+
+Only AZ100001 has the complete banking fixture. Other customers show their own supplied accounts and transactions; missing balances remain unavailable, and the demo never reuses another customer's funds, recipients or withdrawal accounts. No live banking service is connected.
+
+Target search and freeze filters share one row where space permits. Pricing tabs, customer selection and action buttons align. Customer tables fill their cards, row actions are horizontal, and filter buttons use their natural size. Search fields have a separate clear-text X. Narrow screens wrap filters and scroll wide tables inside the card.
+
+`verify-admin-customer.mjs` checks the administrator workspace, customer isolation and retained state. The camera capture UI and application wizard remain unchanged.

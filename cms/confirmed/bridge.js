@@ -110,6 +110,7 @@ window.AzureBridge={get state(){return S;},get account(){return azureSession;},g
  get wizard(){return wiz();},blank:company=>kycBlank(company),sample:(company,contact)=>kycPrefill(company,contact),issues:kycIssues,get extraTypes(){return KYC_EXTRA;},neededExtra:kycNeedExtra,get products(){return ACCOUNT_PRODUCTS;},get applications(){return APPLICATIONS;},get appKyc(){return APP_KYC;},setPath:kSetPath,get kyc(){return S.kf;},qr:(el,text)=>new QRCode(el,{text,width:180,height:180,correctLevel:QRCode.CorrectLevel.M})};
 window.addEventListener('message',e=>{if(e.source!==parent||e.origin!==location.origin||e.data?.type!=='azure-session')return;const d=e.data;
  if(d.account&&!MENUS[d.account.role])return;
+ if(window.azurePrepareSession?.(d)===false)return;
  azureSession=d.account?{...d.account}:null;azureBase=d.base||azureBase;
  if(azureSession){Object.assign(ME[azureSession.role],{org:azureSession.id,user:azureSession.name,email:azureSession.email,orgName:azureSession.organization});}
  S.theme=localStorage.getItem('azure-theme')||'light';setFontSize(localStorage.getItem('azure-font')||'normal');parseHash();I18N.set(d.locale||'zh-Hant');render();

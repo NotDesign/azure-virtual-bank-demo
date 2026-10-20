@@ -20,7 +20,7 @@ for(const [role,email] of Object.entries(emails)){
   const invitation=await f.evaluate(code=>AGENT_LINKS.find(l=>l.code===code),code);
   check(invitation?.level===2&&invitation?.org===ownOrg,'l1 join entry belongs to its own level 1 organization');await popup.close();
  }
- for(const path of paths){await f.evaluate(p=>location.hash=p,path);await page.waitForTimeout(100);check(await f.locator('.page-title').count()>0,role+' page title '+path);const scroll=await f.evaluate(()=>({body:document.body.scrollWidth,view:innerWidth}));check(scroll.body<=scroll.view,role+' body overflow '+path);}
+ for(const path of paths){await f.evaluate(p=>location.hash=p,path);await page.waitForTimeout(100);if(path.includes('/customer-'))await f.waitForFunction(()=>document.querySelector('.admin-customer-frame')?.contentWindow?.AzureWizard&&document.querySelector('.admin-customer-frame')?.contentWindow?.document.readyState==='complete');check(await f.locator('.page-title').count()>0,role+' page title '+path);const scroll=await f.evaluate(()=>({body:document.body.scrollWidth,view:innerWidth}));check(scroll.body<=scroll.view,role+' body overflow '+path);}
  const scope=await f.evaluate(()=>({portal:AzureBridge.state.portal,customers:custsInScope().map(c=>c.id),transactions:txsInScope().length,apps:appsInScope().map(a=>a.id)}));
  if(role==='cust')check(scope.customers.join(',')==='AZ100001','cust only owns one customer');
  if(role==='l2')check(scope.customers.length===2,'l2 scope count');
