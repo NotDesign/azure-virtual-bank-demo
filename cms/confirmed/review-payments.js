@@ -6,7 +6,8 @@
   const text = value => E(value);
   let draft = null;
   let proofFile = null;
-  const nativeNew = cpNew, nativeDetail = cpDetail, nativePayDo = payDo;
+  let withdrawDraft = null, withdrawProof = null, batchFiles = null, paymentFiles = null;
+  const nativeNew = cpNew, nativeDetail = cpDetail, nativePayDo = payDo, nativeWithdrawNew = newWithdrawAcct, nativeWdDo = wdDo;
   const regionOptions = ['中国香港', '中国', '新加坡', '美国', '日本', '德国', '英国', '卢森堡', '其他'];
   const currencyOptions = Object.keys(FXR);
   const T = (tc, sc, en) => C(tc, sc, en);
@@ -25,9 +26,11 @@
       safe.accts = c.accts.map(a => Object.fromEntries(Object.entries(a).map(([k, v]) => [k, typeof v === 'string' ? text(v) : v])));
       CPS[i] = safe;
     });
-    try { return fn(); } finally { saved.forEach(([i, c]) => { CPS[i] = c; }); }
+    const withdrawals=[];
+    WITHDRAW_ACCTS.forEach((w,i)=>{if(own(w)){withdrawals.push([i,w]);WITHDRAW_ACCTS[i]=Object.fromEntries(Object.entries(w).map(([k,v])=>[k,typeof v==='string'&&!['id','_reviewCustomer','status','ccy','added'].includes(k)?text(v):v]));}});
+    try { return fn(); } finally { saved.forEach(([i, c]) => { CPS[i] = c; });withdrawals.forEach(([i,w])=>{WITHDRAW_ACCTS[i]=w;}); }
   }
-  for (const key of ['cust:pay', 'cust:cp']) {
+  for (const key of ['cust:pay', 'cust:cp', 'cust:accounts']) {
     const source = PAGES[key];
     PAGES[key] = () => safePage(source);
   }
@@ -58,14 +61,23 @@
     if (!form) return;
     new FormData(form).forEach((v, k) => { if (typeof v === 'string') draft[k] = v.trim(); });
   }
+  function capturePayment(){
+    if(S.page!=='pay')return;
+    document.querySelectorAll('[onchange^="S.pay."]').forEach(el=>{
+      const key=/^S\.pay\.(from|cp|ai|amt|purpose|fee|memo)=/.exec(el.getAttribute('onchange')||'')?.[1];
+      if(key&&S.pay)S.pay[key]=key==='amt'?Number(el.value.replace(/,/g,''))||0:key==='ai'?Number(el.value):el.value;
+    });
+    if((S.ui.pt||'pay')==='wd'&&S.wd){
+      const picker=document.querySelector('select[onchange^="S.wd.wa"]'),amount=document.querySelector('input[onchange^="S.wd.amt"]'),memo=document.querySelector('[data-rp-withdraw-memo]');
+      if(picker)S.wd.wa=picker.value;if(amount)S.wd.amt=Number(amount.value.replace(/,/g,''))||0;if(memo)S.wd.memo=memo.value;
+    }
+    const upload=document.querySelector('.rp-payment-card input[type=file]');
+    if(S.ui.pt==='batch'&&upload)batchFiles=upload.files;
+    if((S.ui.pt||'pay')==='pay'&&upload)paymentFiles=upload.files;
+  }
   RP.openNew = function (inline = false, dir = '收款方', editId = null) {
     if (S.portal !== 'cust') return;
-    if (inline && S.pay) {
-      document.querySelectorAll('[onchange^="S.pay."]').forEach(el => {
-        const key = /^S\.pay\.(from|cp|ai|amt|purpose|fee|memo)=/.exec(el.getAttribute('onchange') || '')?.[1];
-        if (key) S.pay[key] = key === 'amt' ? Number(el.value.replace(/,/g, '')) || 0 : key === 'ai' ? Number(el.value) : el.value;
-      });
-    }
+    if(inline)capturePayment();
     const record = editId ? CPS.find(c => c.id === editId && own(c)) : null;
     proofFile = null;
     draft = record ? { ...record, ...(record.accts[0] || {}), name: record.name, inline, editId, acctName: record.accts[0]?.name || record.name, region: record.accts[0]?.region || record.country, bankAddr: record.accts[0]?.bankAddr || '', idType: record.idType || '护照' } : { inline, dir, type: '企业', country: '中国香港', region: '中国香港', ccy: S.pay?.from || 'USD', nature: '对公', biz: [dir === '收款方' ? '全球付款' : '全球收款'], idType: '护照' };
@@ -136,7 +148,7 @@
     S.pay ||= { from: 'USD', amt: 25000, lock: 'S', fee: 'S', purpose: '货物贸易', memo: '' };
     S.pay.cp = id; S.pay.ai = 0; S.ui.rpRecentPayee = null;
     closeModal();
-    if (S.page !== 'pay') { S.nextUI = { pt: 'pay' }; go('cust', 'pay'); } else render();
+    if (S.page !== 'pay') { S.nextUI = { pt: 'pay' }; go('cust', 'pay'); } else { S.ui.pt='pay';render(); }
   };
   payDo = function (review, sellAmt) {
     const c = CPS.find(c => c.id === S.pay?.cp);
@@ -146,20 +158,82 @@
     nativePayDo(review, sellAmt);
   };
 
+  RP.openPaymentNew=()=>{capturePayment();if((S.ui.pt||'pay')==='wd')RP.openWithdraw();else RP.openNew(true);};
+  RP.openWithdraw=function(){
+    if(S.portal!=='cust')return;
+    capturePayment();withdrawProof=null;withdrawDraft={region:'中国香港',ccy:'HKD',name:cust(CID()).en||cust(CID()).name,bank:'',swift:'',acct:'',city:'',proof:''};
+    const field=(key,label,extra='')=>`<div class="field"><label for="rp-wa-${key}">${label} *</label><input class="input" id="rp-wa-${key}" name="${key}" value="${text(withdrawDraft[key])}" required maxlength="180" ${extra}></div>`;
+    const currencies=Object.keys(bal()||{}).filter(c=>c!=='CNY');
+    modal(T('新增提現帳戶','新增提现账户','New withdrawal account'),`<form id="rp-withdraw-form" class="rp-counterparty-form"><p class="small muted">${T('提現只限公司本人名下的帳戶。提交後需審核，原提現內容會保留。','提现只限公司本人名下的账户。提交后需审核，原提现内容会保留。','Withdrawals are limited to accounts in your company name. Your withdrawal details are preserved while the new account is reviewed.')}</p><div class="form-grid"><div class="field"><label for="rp-wa-region">${T('帳戶所在地','账户所在地','Account country / region')} *</label><select class="select" id="rp-wa-region" name="region">${options(regionOptions,'中国香港')}</select></div><div class="field"><label for="rp-wa-ccy">${T('幣種','币种','Currency')} *</label><select class="select" id="rp-wa-ccy" name="ccy">${options(currencies,currencies.includes('HKD')?'HKD':currencies[0])}</select></div><div class="field full"><label for="rp-wa-name">${T('戶名（與公司名稱一致）','户名（与公司名称一致）','Account holder (company name)')}</label><input class="input" id="rp-wa-name" value="${text(withdrawDraft.name)}" readonly></div>${field('bank',T('銀行名稱','银行名称','Bank name'))}${field('swift','SWIFT / BIC')}${field('acct',T('銀行帳號／IBAN','银行账号／IBAN','Bank account number / IBAN'),'autocomplete="off"')}${field('city',T('城市（英文）','城市（英文）','City (English)'))}<div class="field full"><label for="rp-wa-proof">${T('開戶憑證','开户凭证','Account ownership document')} *</label><input class="input" id="rp-wa-proof" type="file" accept="application/pdf,image/jpeg,image/png" onchange="AzureReviewPayments.pickWithdrawProof(this)"><small id="rp-wa-proof-name" class="muted">PDF / JPG / PNG · ${T('最多 5 MB','最多 5 MB','up to 5 MB')}</small></div></div><div id="rp-wa-error" class="rp-form-error" role="alert" hidden></div></form>`,`<button class="btn" onclick="closeModal()">${T('取消','取消','Cancel')}</button><button class="btn primary" onclick="AzureReviewPayments.saveWithdraw()">${T('提交審核','提交审核','Submit for review')}</button>`,true);
+    document.getElementById('rp-withdraw-form').addEventListener('submit',e=>{e.preventDefault();RP.saveWithdraw();});
+  };
+  function withdrawError(message){const el=document.getElementById('rp-wa-error');if(el){el.hidden=false;el.textContent=message;}}
+  RP.pickWithdrawProof=function(el){
+    const f=el.files[0];if(!f)return;
+    if(!['application/pdf','image/jpeg','image/png'].includes(f.type)||!f.size||f.size>5*1024*1024){el.value='';withdrawProof=null;return withdrawError(T('請選擇最多 5 MB 的 PDF、JPG 或 PNG。','请选择最多 5 MB 的 PDF、JPG 或 PNG。','Choose a PDF, JPG or PNG up to 5 MB.'));}
+    withdrawProof=f;document.getElementById('rp-wa-proof-name').textContent=f.name;
+  };
+  RP.saveWithdraw=function(){
+    const form=document.getElementById('rp-withdraw-form');if(S.portal!=='cust'||!form||!withdrawDraft)return;
+    if(!form.reportValidity())return;
+    const data=Object.fromEntries([...new FormData(form)].map(([k,v])=>[k,typeof v==='string'?v.trim():v]));
+    if(['bank','swift','acct','city'].some(k=>!data[k]))return withdrawError(T('請完整填寫銀行資料。','请完整填写银行资料。','Complete the bank details.'));
+    if(Object.values(data).some(v=>typeof v==='string'&&/[<>\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(v)))return withdrawError(T('請使用一般文字，不要輸入 HTML 標記或控制字元。','请使用一般文字，不要输入 HTML 标记或控制字符。','Use plain text without HTML markup or control characters.'));
+    if(!bal()?.[data.ccy]||!regionOptions.includes(data.region))return;
+    if(!withdrawProof)return withdrawError(T('請上傳開戶憑證。','请上传开户凭证。','Upload an account ownership document.'));
+    const record={id:'WAR'+crypto.randomUUID().replace(/-/g,'').slice(0,12),_reviewCustomer:CID(),name:cust(CID()).en||cust(CID()).name,...data,proof:withdrawProof.name,status:'审核中',added:TODAY};
+    if(window.AzureAdminChild){const a=parent.AzureBridge?.account;if(a?.role==='hq')record.adminActor={role:'hq',email:a.email,name:a.name,customerId:CID()};}
+    WITHDRAW_ACCTS.push(record);S.ui.rpRecentWithdraw=record.id;withdrawDraft=null;withdrawProof=null;closeModal();render();toast(T('已提交帳戶審核，原提現內容已保留。','已提交账户审核，原提现内容已保留。','Account submitted for review. Your withdrawal details are preserved.'));
+  };
+  RP.withdrawDetail=function(id){
+    const w=WITHDRAW_ACCTS.find(w=>w.id===id&&own(w));if(!w)return;
+    modal(T('提現帳戶資料','提现账户资料','Withdrawal account details'),`${statusBadge(w.status)}<dl class="kv mt">${[[T('戶名','户名','Account holder'),w.name],[T('銀行','银行','Bank'),w.bank],[T('帳號','账号','Account number'),w.acct],['SWIFT / BIC',w.swift],[T('幣種','币种','Currency'),w.ccy],[T('地區','地区','Region'),I18N.tr(w.region)],[T('城市','城市','City'),w.city],[T('開戶憑證','开户凭证','Ownership document'),w.proof]].map(([k,v])=>`<dt>${k}</dt><dd>${text(v)}</dd>`).join('')}</dl>`,`<button class="btn" onclick="closeModal()">${T('關閉','关闭','Close')}</button>${w.status==='审核中'?`<button class="btn primary" onclick="AzureReviewPayments.approveWithdraw('${w.id}')">${T('模擬審核通過（Demo）','模拟审核通过（Demo）','Simulate approval (Demo)')}</button>`:`<button class="btn primary" onclick="AzureReviewPayments.useWithdraw('${w.id}')">${T('選用此帳戶','选用此账户','Use this account')}</button>`}`);
+  };
+  RP.approveWithdraw=function(id){const w=WITHDRAW_ACCTS.find(w=>w.id===id&&own(w));if(!w||w.status!=='审核中')return;w.status='正常';closeModal();render();toast(T('已模擬帳戶審核通過（Demo）。','已模拟账户审核通过（Demo）。','Account approval simulated (Demo).'));};
+  RP.useWithdraw=function(id){const w=WITHDRAW_ACCTS.find(w=>w.id===id&&own(w)&&w.status==='正常');if(!w)return;capturePayment();S.wd||={amt:50000};S.wd.wa=id;S.ui.rpRecentWithdraw=null;closeModal();if(S.page!=='pay'){S.nextUI={pt:'wd'};go('cust','pay');}else{S.ui.pt='wd';render();}};
+  newWithdrawAcct=function(){if(S.portal==='cust')RP.openWithdraw();else nativeWithdrawNew();};
+  wdDo=function(){
+    const w=WITHDRAW_ACCTS.find(w=>w.id===S.wd?.wa),amount=Number(S.wd?.amt);
+    if(S.portal!=='cust'||!w||w.status!=='正常'||w._reviewCustomer&&w._reviewCustomer!==CID()||!Number.isFinite(amount)||amount<=0||!bal()?.[w.ccy]||amount>bal()[w.ccy].a)return toast(T('請確認帳戶已通過審核，且金額大於 0 並未超過可用結存。','请确认账户已通过审核，且金额大于 0 并未超过可用结存。','Use an approved account and enter a positive amount within the available balance.'));
+    S.wd.amt=amount;const ids=new Set(TXS.map(t=>t.id));nativeWdDo();const tx=TXS.find(t=>!ids.has(t.id));if(tx){tx.memo=S.wd.memo||'';tx.maker=window.AzureAdminChild?parent.AzureBridge.account.email:ME.cust.email;}
+  };
+
+  function paymentToolbar(){
+    const page=document.querySelector('.page-in');page?.classList.add('rp-payment-page');
+    const tabs=[...document.querySelectorAll('.tabs')].find(el=>el.querySelector('[onclick*="\'pt\'"]'));const card=tabs?.closest('.card');if(!card)return null;
+    card.classList.add('rp-payment-card');const toolbar=document.createElement('div');toolbar.className='rp-payment-toolbar';tabs.before(toolbar);toolbar.append(tabs);
+    const actions=document.createElement('div');actions.className='rp-payment-actions';toolbar.append(actions);
+    const add=document.createElement('button');add.type='button';add.className='btn primary rp-payment-add '+(S.ui.pt==='wd'?'rp-add-withdraw':'rp-add-recipient');add.innerHTML=ICON.plus+`<span>${T('即時新增','即时新增','Add now')}</span>`;add.setAttribute('aria-label',S.ui.pt==='wd'?T('即時新增提現帳戶','即时新增提现账户','Add a withdrawal account'):T('即時新增收款方','即时新增收款方','Add a recipient'));add.onpointerdown=e=>e.preventDefault();add.onclick=RP.openPaymentNew;actions.append(add);
+    const management=page.querySelector('.operations a[href="#/cust/cp"]');if(management)actions.append(management);const rail=page.querySelector('.operations');if(rail&&!rail.querySelector('.btn-row>*'))rail.remove();page.querySelector('.operation-trigger')?.remove();
+    const grid=card.querySelector(':scope>.card-pad.grid.g2');if(grid){grid.classList.add('rp-payment-grid');grid.children[0]?.classList.add('rp-payment-fields');grid.children[1]?.classList.add('rp-payment-summary');}
+    return toolbar;
+  }
+
   const previousAfter = afterRender;
   afterRender = function () {
     previousAfter();
-    if (S.portal !== 'cust' || S.page !== 'pay' || (S.ui.pt || 'pay') !== 'pay') return;
+    if(S.portal!=='cust'||S.page!=='pay')return;
+    const toolbar=paymentToolbar();if(!toolbar)return;
+    if(S.ui.pt==='batch'){const file=document.querySelector('.rp-payment-card input[type=file]');if(file){if(batchFiles)file.files=batchFiles;file.onchange=()=>{batchFiles=file.files;};}}
+    if(S.ui.pt==='wd'){
+      const picker=document.querySelector('select[onchange^="S.wd.wa"]');
+      if(picker){if(![...picker.options].some(o=>o.value===S.wd.wa))S.wd.wa=picker.options[0]?.value;picker.value=S.wd.wa;WITHDRAW_ACCTS.filter(w=>own(w)&&w.status!=='正常').forEach(w=>{const o=new Option(`${w.bank} · ${w.acct} · ${I18N.tr(w.status)}`,w.id);o.disabled=true;picker.append(o);});}
+      const memo=document.querySelector('.rp-payment-fields .field:last-child input');if(memo){memo.dataset.rpWithdrawMemo='true';memo.value=S.wd.memo||'';memo.oninput=()=>{S.wd.memo=memo.value;};}
+      const hint=document.querySelector('.rp-payment-summary>.small.muted');if(hint)hint.textContent=T('可按上方「即時新增」加入本人名下的銀行帳戶。','可按上方「即时新增」加入本人名下的银行账户。','Use Add now above to register a bank account in your company name.');
+      const recent=WITHDRAW_ACCTS.find(w=>w.id===S.ui.rpRecentWithdraw&&own(w));if(recent){const n=document.createElement('div');n.className='rp-new-withdraw';n.setAttribute('role','status');n.innerHTML=`<div><strong>${text(recent.bank)}</strong>${statusBadge(recent.status)}<p class="small muted">${recent.status==='正常'?T('審核已通過，可選用此帳戶。','审核已通过，可选用此账户。','Approved and ready to use.'):T('帳戶資料已保存，審核通過後可選用。原提現內容已保留。','账户资料已保存，审核通过后可选用。原提现内容已保留。','Account saved for review. Your withdrawal details are preserved.')}</p></div><button class="btn sm" onclick="AzureReviewPayments.withdrawDetail('${recent.id}')">${T('查看','查看','View')}</button>${recent.status==='正常'?`<button class="btn primary sm" onclick="AzureReviewPayments.useWithdraw('${recent.id}')">${T('選用','选用','Use')}</button>`:''}`;toolbar.after(n);}
+      return;
+    }
+    if(S.ui.pt==='batch'){
+      const recent=CPS.find(c=>c.id===S.ui.rpRecentPayee&&own(c));
+      if(recent){const n=document.createElement('div');n.className='rp-new-recipient';n.setAttribute('role','status');n.innerHTML=`<div><strong>${text(recent.name)}</strong>${statusBadge(recent.status)}<p class="small muted">${T('收款方資料已保存；批次步驟及原有校驗結果維持不變。','收款方资料已保存；批次步骤及原有校验结果维持不变。','Recipient details saved. Your batch step and validation results are preserved.')}</p></div><button class="btn sm" onclick="cpDetail('${recent.id}')">${T('查看','查看','View')}</button>`;toolbar.after(n);}
+      return;
+    }
+    if((S.ui.pt||'pay')!=='pay')return;
+    {const file=document.querySelector('.rp-payment-card input[type=file]');if(file){if(paymentFiles)file.files=paymentFiles;file.onchange=()=>{paymentFiles=file.files;};}}
     const picker = document.querySelector('select[onchange*="S.pay.cp"]');
     if (!picker || picker.closest('.rp-recipient-picker')) return;
     const wrapper = document.createElement('div'); wrapper.className = 'rp-recipient-picker';
     picker.before(wrapper); wrapper.append(picker);
-    const add = document.createElement('button'); add.type = 'button'; add.className = 'btn rp-add-recipient';
-    add.innerHTML = `${ICON.plus}<span>${T('新增', '新增', 'Add')}</span>`;
-    add.setAttribute('aria-label', T('即時新增收款方', '即时新增收款方', 'Add a recipient without leaving this payment'));
-    add.onpointerdown = e => { e.preventDefault(); };
-    add.onclick = () => RP.openNew(true);
-    wrapper.append(add);
     const pending = CPS.filter(c => own(c) && c.dir === '收款方' && c.status !== '正常');
     pending.forEach(c => { const option = document.createElement('option'); option.value = c.id; option.disabled = true; option.textContent = `${c.name} · ${I18N.tr(c.status)}`; picker.append(option); });
     const recent = CPS.find(c => c.id === S.ui.rpRecentPayee && own(c));

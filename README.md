@@ -64,3 +64,11 @@ Only AZ100001 has the complete banking fixture. Other customers show their own s
 Target search and freeze filters share one row where space permits. Pricing tabs, customer selection and action buttons align. Customer tables fill their cards, row actions are horizontal, and filter buttons use their natural size. Search fields have a separate clear-text X. Narrow screens wrap filters and scroll wide tables inside the card.
 
 `verify-admin-customer.mjs` checks the administrator workspace, customer isolation and retained state. The camera capture UI and application wizard remain unchanged.
+
+## Payment and FX follow-up
+
+Single payments, batch payments and withdrawals now share an aligned toolbar with **Add now**. It opens a recipient form or a company-owned withdrawal account form in place. Entered payment details, withdrawal amount and memo, and the batch upload survive adding a record. New withdrawal records use the entered bank data and retain account-number leading zeros; they stay unavailable until an explicit Demo approval. Withdrawal submission rejects unapproved or unknown accounts, invalid amounts and insufficient funds.
+
+The FX workspace includes **各戶口結存概況** with the actual linked bank accounts and source currency totals. Currency aggregates are labelled separately from individual account balances. The exchange form and trend chart share aligned card edges. Both updates apply to the customer login and the full-administrator customer workspace.
+
+Run `node scripts/verify-payment-instant.mjs` and `node scripts/verify-fx-account-overview.mjs` for the focused follow-up checks. Application progress is available to agents under **申請進度** and to HQ under **客戶與開戶 → 開戶申請工作台**; both use the application search, source, owner and date filters.

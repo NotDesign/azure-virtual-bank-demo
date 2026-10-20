@@ -2,10 +2,10 @@
 .rp-recipient-picker>.select{flex:1;min-width:0;width:0}
 .rp-add-recipient{flex:none;gap:6px;padding:0 12px;white-space:nowrap}
 .rp-add-recipient svg{width:16px;height:16px}
-.rp-new-recipient{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:12px;border:1px solid var(--color-divider,#ccd8e9);border-radius:12px;background:var(--color-surface-2,#f4f7fc)}
-.rp-new-recipient>div{flex:1 1 160px;min-width:0}
-.rp-new-recipient strong{overflow-wrap:anywhere;margin-right:8px}
-.rp-new-recipient p{margin:6px 0 0}
+:is(.rp-new-recipient,.rp-new-withdraw){display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:12px;border:1px solid var(--color-divider,#ccd8e9);border-radius:12px;background:var(--color-surface-2,#f4f7fc)}
+:is(.rp-new-recipient,.rp-new-withdraw)>div{flex:1 1 160px;min-width:0}
+:is(.rp-new-recipient,.rp-new-withdraw) strong{overflow-wrap:anywhere;margin-right:8px}
+:is(.rp-new-recipient,.rp-new-withdraw) p{margin:6px 0 0}
 .rp-balances{margin-bottom:20px}
 .rp-balances .card-head{align-items:start;gap:16px}
 .rp-balances .card-head p{margin:8px 0 0;max-width:780px;line-height:1.6}
@@ -35,3 +35,51 @@
 .rp-form-error{margin-top:16px;padding:12px;border:1px solid #df9999;border-radius:10px;color:#9b2323;background:#fff3f3;line-height:1.6}
 .rp-counterparty-status{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:20px}
 @media(max-width:599px){.rp-balance-grid{padding:0 16px 16px;gap:12px}.rp-balance-card{padding:16px}.rp-add-recipient{padding:0 10px}.rp-recipient-picker{gap:6px}.rp-balances .card-head{flex-wrap:wrap}.rp-balances .card-head .card-sub{white-space:normal}}
+
+/* Payment, batch-payment and own-account withdrawal share one aligned workspace. */
+.rp-payment-page>.page-head{align-items:flex-start;gap:16px;margin-bottom:24px}
+.rp-payment-page .page-head>div:first-child{min-width:0}
+.rp-payment-page>.workspace-grid{grid-template-columns:minmax(0,1fr);gap:16px}
+.rp-payment-page .workspace-body{width:100%;min-width:0}
+.rp-payment-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px 20px;flex-wrap:wrap;padding:16px 24px;border-bottom:1px solid var(--color-divider)}
+.rp-payment-toolbar>.tabs{flex:0 1 auto;min-width:0;padding:0;border:0;gap:8px}
+.rp-payment-toolbar>.btn-row,.rp-payment-toolbar>.rp-payment-actions{display:flex;flex:0 0 auto;align-items:center;flex-wrap:wrap;gap:8px}
+.rp-payment-toolbar>.tabs>button,.rp-payment-toolbar>.btn-row>.btn,.rp-payment-toolbar>.rp-payment-actions>.btn,.rp-payment-toolbar>.btn{width:auto;height:44px;min-height:44px;padding:10px;white-space:nowrap;font-size:14px;line-height:22px}
+.rp-payment-toolbar .rp-payment-add{background:var(--accent);border-color:var(--accent);color:#fff}
+.rp-payment-toolbar .rp-payment-add:hover{background:var(--accent-hover)}
+.rp-payment-card>.tabs{padding:16px 24px}
+.rp-payment-card>.card-pad.grid.g2{grid-template-columns:minmax(0,1.15fr) minmax(300px,.85fr);align-items:start;gap:24px;padding:24px}
+.rp-payment-card>.card-pad.grid.g2>div:first-child{display:grid;gap:20px!important;align-content:start;min-width:0}
+.rp-payment-card .field{gap:8px;min-width:0;margin:0}
+.rp-payment-card .field>label{display:block;margin:0;font-size:14px;line-height:22px}
+.rp-payment-card .form-grid{gap:20px;align-items:start}
+.rp-payment-card .field>.input,.rp-payment-card .field>.select{width:100%;min-width:0;min-height:48px}
+.rp-payment-card .field>.seg{padding:0;border:0;gap:8px;flex-wrap:wrap;overflow:visible}
+.rp-payment-card .field>.seg>button{min-height:40px;height:auto;white-space:normal;line-height:20px}
+.rp-payment-card>.card-pad.grid.g2>.card.card-pad{position:static;padding:24px;display:flex;flex-direction:column;gap:16px;min-width:0;border-radius:12px}
+.rp-payment-card>.card-pad.grid.g2>.card.card-pad>.bold{margin:0;font-size:16px;line-height:24px}
+.rp-payment-card>.card-pad.grid.g2>.card.card-pad>.mt{margin-top:0!important}
+.rp-payment-card .calc-out{grid-template-columns:minmax(96px,.8fr) minmax(0,1.2fr);gap:12px 16px;align-items:start;font-size:14px;line-height:22px;min-width:0}
+.rp-payment-card .calc-out>span{min-width:0;overflow-wrap:anywhere}
+.rp-payment-card .calc-out>span:nth-child(odd){text-align:left}
+.rp-payment-card .calc-out>span:nth-child(even){text-align:right;white-space:normal}
+.rp-payment-card .calc-out>.tot{padding-top:12px}
+.rp-payment-card>.card-pad.grid.g2>.card.card-pad>.btn.primary{margin-top:4px!important;align-self:stretch;min-height:48px}
+.rp-payment-card>.card-pad.grid.g2>.card.card-pad>.small{font-size:13px;line-height:20px}
+.rp-payment-card .rp-recipient-picker>.btn{min-height:48px}
+.rp-payment-card :is(.rp-new-recipient,.rp-new-withdraw){margin-top:0}
+@media(max-width:1000px){
+  .rp-payment-card>.card-pad.grid.g2{grid-template-columns:minmax(0,1fr)}
+  .rp-payment-card>.card-pad.grid.g2>.card.card-pad{width:100%;max-width:none}
+}
+@media(max-width:599px){
+  .rp-payment-page>.page-head{margin-bottom:20px}
+  .rp-payment-toolbar{padding:16px;gap:12px}
+  .rp-payment-toolbar>.tabs{flex-basis:100%;width:100%;overflow-x:auto;flex-wrap:nowrap}
+  .rp-payment-toolbar>.btn-row,.rp-payment-toolbar>.rp-payment-actions{width:100%;justify-content:flex-start;flex-wrap:wrap}
+  .rp-payment-card>.tabs{padding:16px}
+  .rp-payment-card>.card-pad.grid.g2{padding:16px;gap:20px}
+  .rp-payment-card .form-grid{grid-template-columns:minmax(0,1fr);gap:20px}
+  .rp-payment-card>.card-pad.grid.g2>.card.card-pad{padding:16px}
+  .rp-payment-card .calc-out{grid-template-columns:minmax(88px,.8fr) minmax(0,1.2fr);gap:12px}
+}
