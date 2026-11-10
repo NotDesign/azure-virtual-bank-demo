@@ -1,12 +1,12 @@
 import {chromium} from 'playwright';
 import fs from 'node:fs/promises';
 const browser=await chromium.launch({headless:true,executablePath:'/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'});
-const errors=[],fails=[],report={scopes:[],screens:[]};
+const errors=[],fails=[],report={scopes:[],screens:[],expectedMarketAborts:[]};
 const emails={cust:'finance@starocean.example',l1:'ops@ganghuitong.example',l2:'chan@chanstudio.example',hq:'stephen@ourbank.example'};
 const check=(value,label)=>{if(!value)fails.push(label);};
 async function login(page,email){await page.goto('http://127.0.0.1:3193/');await page.locator('#email').fill(email);await page.locator('#password').fill('AzureDemo!2026');await page.locator('#submit').click();await page.locator('[data-method=email]').click();for(let i=0;i<6;i++)await page.locator('#digit-'+i).fill('381726'[i]);await page.locator('#submit').click();await page.locator('.cms-confirmed-frame').waitFor();await page.waitForFunction(()=>document.querySelector('iframe')?.contentWindow?.location.pathname.includes('/confirmed/'));const frame=page.frames().find(f=>f.url().includes('/confirmed/'));await frame.waitForSelector('.page-title');await frame.waitForFunction(()=>document.readyState==='complete'&&window.AzureFiles&&window.AzureWizard&&window.AzureReviewAgents?.ready);await frame.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>resolve())));return frame;}
 for(const [role,email] of Object.entries(emails)){
- const page=await browser.newPage({viewport:{width:1920,height:1080}});page.on('pageerror',e=>errors.push(role+': '+e.message));page.on('requestfailed',r=>errors.push(role+' request: '+r.url()));
+ const page=await browser.newPage({viewport:{width:1920,height:1080}});page.on('pageerror',e=>errors.push(role+': '+e.message));page.on('requestfailed',r=>{const u=new URL(r.url()),failure=r.failure()?.errorText;if(u.origin==='https://api.coinbase.com'&&u.pathname==='/v2/exchange-rates'&&failure==='net::ERR_ABORTED')report.expectedMarketAborts.push({role,url:r.url(),failure});else errors.push(role+' request: '+r.url()+' '+failure);});
  const f=await login(page,email);await page.waitForTimeout(1200);
  const paths=await f.locator('.sidebar .nav a:not(.disabled)').evaluateAll(es=>es.map(a=>a.getAttribute('href')));
  check(await f.locator('.portal-switch').count()===0,role+' role switch absent');

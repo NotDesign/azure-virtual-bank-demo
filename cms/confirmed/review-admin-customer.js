@@ -1,7 +1,7 @@
 /* Full administrators can open each customer function without leaving their HQ session. */
 (() => {
   const clone = value => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
-  const pages = [['home','客戶首頁','客户首页','Customer home'],['accounts','客戶帳戶管理','客户账户管理','Customer accounts'],['statements','對帳單與證明','对账单与证明','Statements and letters'],['pay','全球付款','全球付款','Global payments'],['fx','匯兌中心','汇兑中心','Currency exchange'],['xborder','跨境付款','跨境付款','Cross-border payments'],['txs','客戶交易中心','客户交易中心','Customer transactions'],['cp','交易對手','交易对手','Counterparties'],['settings','客戶團隊與設定','客户团队与设置','Customer team and settings']];
+  const pages = [['home','客戶首頁','客户首页','Customer home'],['accounts','客戶帳戶管理','客户账户管理','Customer accounts'],['wallets','多錢包與資產','多钱包与资产','Wallets and assets'],['statements','對帳單與證明','对账单与证明','Statements and letters'],['pay','全球付款','全球付款','Global payments'],['fx','匯兌中心','汇兑中心','Currency exchange'],['xborder','跨境付款','跨境付款','Cross-border payments'],['txs','客戶交易中心','客户交易中心','Customer transactions'],['cp','交易對手','交易对手','Counterparties'],['settings','客戶團隊與設定','客户团队与设置','Customer team and settings']];
   const cache = new Map();
   let customerId = 'AZ100001', frame = null, frameCustomer = '', channel = '', childMode = false, childCustomer = '', childToken = '', childActor=null;
   const seen={};
@@ -30,13 +30,14 @@
     window.BALANCES=context.balance?{[childCustomer]:clone(context.balance)}:{};
     for (const key of ['CPS','WITHDRAW_ACCTS','FROZEN','HELD_RETURNS','BATCHES','FX_ORDERS']) window[key]=clone(context.extra?.[key]||[]);
     window.VA_INFO=clone(context.extra?.VA_INFO||{});window.USERS={[childCustomer]:clone(context.extra?.users||[])};
+    if(context.wallets)window.AzureWallets?.restore(childCustomer,context.wallets,context.token);
     for(const key of ['TXS','CPS','BATCHES','FX_ORDERS'])seen[key]=new Set(window[key].map(r=>r.id));
     Object.assign(S,clone(context.drafts||{}));
     if(context.lastPage===context.page) S.ui=clone(context.ui||{});
     window.AzureAdminChild={get customerId(){return childCustomer;},snapshot(){
       const extra=Object.fromEntries(['CPS','WITHDRAW_ACCTS','FROZEN','HELD_RETURNS','BATCHES','FX_ORDERS'].map(k=>[k,clone(window[k])]));extra.VA_INFO=clone(VA_INFO);extra.users=clone(USERS[CID()]||[]);
       const drafts=Object.fromEntries(['pay','fx','wd','xb'].filter(k=>S[k]).map(k=>[k,clone(S[k])]));
-      return {customerId:childCustomer,accounts:clone(myAccts()),txs:clone(TXS.filter(t=>t.cust===CID())),balance:clone(BALANCES[CID()]),extra,drafts,ui:clone(S.ui),lastPage:S.page};
+      return {customerId:childCustomer,accounts:clone(myAccts()),txs:clone(TXS.filter(t=>t.cust===CID())),balance:clone(BALANCES[CID()]),wallets:window.AzureWallets?.snapshot(),extra,drafts,ui:clone(S.ui),lastPage:S.page};
     }};
     return true;
   };
@@ -44,7 +45,7 @@
     const source=PAGES['cust:'+key];
     if (!source) continue;
     PAGES['cust:'+key]=()=>{
-      if (childMode && key!=='cp' && key!=='settings' && !BALANCES[CID()]) return noData(key);
+      if (childMode && !['cp','settings','wallets'].includes(key) && !BALANCES[CID()]) return noData(key);
       if (childMode && ['pay','fx','xborder'].includes(key) && blocked()) return head(I18N.tr(pages.find(p=>p[0]===key)[2]))+note(copy('此客戶的付款功能已凍結，請先在全權後台覆核凍結狀態。','此客户的付款功能已冻结，请先在全权后台复核冻结状态。','Payments are frozen for this customer. Review the freeze status in HQ first.'),'warn');
       return source();
     };
@@ -56,6 +57,7 @@
       const state=frame.contentWindow.AzureAdminChild?.snapshot();
       if(!state || state.customerId!==frameCustomer) return;
       cache.set(frameCustomer,clone(state));
+      if(state.wallets)window.AzureWallets?.restore(frameCustomer,state.wallets);
       if(state.balance) BALANCES[frameCustomer]=clone(state.balance);
       const accountIndex=ACCOUNTS.findIndex(a=>a.cust===frameCustomer), accounts=ACCOUNTS.filter(a=>a.cust!==frameCustomer);
       accounts.splice(accountIndex<0?accounts.length:accountIndex,0,...clone(state.accounts));ACCOUNTS.splice(0,ACCOUNTS.length,...accounts);
@@ -69,7 +71,7 @@
     const c=cust(id), saved=cache.get(id), sample=id==='AZ100001';
     const extra=saved?.extra || (sample?Object.fromEntries(['CPS','WITHDRAW_ACCTS','FROZEN','HELD_RETURNS','BATCHES','FX_ORDERS','VA_INFO'].map(k=>[k,clone(window[k])])):{});
     extra.users=saved?.extra?.users || clone(USERS[id]||[]);
-    return {customer:clone(c),accounts:clone(ACCOUNTS.filter(a=>a.cust===id)),txs:clone(TXS.filter(t=>t.cust===id)),price:clone(CUST_PRICE[id]),floors:clone(FLOORS),balance:clone(BALANCES[id]),extra:clone(extra),drafts:clone(saved?.drafts||{}),ui:clone(saved?.ui||{}),lastPage:saved?.lastPage,page,token:channel};
+    return {customer:clone(c),accounts:clone(ACCOUNTS.filter(a=>a.cust===id)),txs:clone(TXS.filter(t=>t.cust===id)),price:clone(CUST_PRICE[id]),floors:clone(FLOORS),balance:clone(BALANCES[id]),wallets:clone(saved?.wallets||window.AzureWallets?.snapshot(id)),extra:clone(extra),drafts:clone(saved?.drafts||{}),ui:clone(saved?.ui||{}),lastPage:saved?.lastPage,page,token:channel};
   }
   function sendSession() {
     if (!frame?.isConnected || !fullAdmin() || !cust(frameCustomer)) return;
@@ -81,7 +83,7 @@
     const host=document.getElementById('admin-customer-host');if(!host)return;
     channel=crypto.randomUUID();frameCustomer=customerId;
     frame=document.createElement('iframe');frame.className='admin-customer-frame';frame.title=copy('全權管理 · 客戶 eBanking','全权管理 · 客户 eBanking','Administrator · Customer eBanking');frame.allow='camera';frame.dataset.adminChannel=channel;
-    frame.src='index.html?v='+encodeURIComponent(new URL(location.href).searchParams.get('v')||'20261020-payments-fx2')+'#/cust/'+page;frame.addEventListener('load',sendSession);host.replaceChildren(frame);
+    frame.src='index.html?v='+encodeURIComponent(new URL(location.href).searchParams.get('v')||'20261110-wallets')+'#/cust/'+page;frame.addEventListener('load',sendSession);host.replaceChildren(frame);
   }
   window.adminSelectCustomer = id => {
     if(!fullAdmin() || !getCustomers().some(c=>c.id===id))return;

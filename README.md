@@ -57,7 +57,7 @@ Customer payments support inline recipient entry while preserving the payment fo
 
 ## Administrator access and compact layouts
 
-Full administrators now have a **Customer eBanking** sidebar group with all nine customer functions, including payments, FX, statements, counterparties and team settings. Select the customer in the workspace or open it from customer details. The administrator remains signed in to HQ. Customer drafts and financial demo state survive workspace navigation and customer changes within this session; new records identify the HQ actor and the selected customer separately.
+Full administrators now have a **Customer eBanking** sidebar group with all customer functions, including wallets, payments, FX, statements, counterparties and team settings. Select the customer in the workspace or open it from customer details. The administrator remains signed in to HQ. Customer drafts and financial demo state survive workspace navigation and customer changes within this session; new records identify the HQ actor and the selected customer separately.
 
 Only AZ100001 has the complete banking fixture. Other customers show their own supplied accounts and transactions; missing balances remain unavailable, and the demo never reuses another customer's funds, recipients or withdrawal accounts. No live banking service is connected.
 
@@ -72,3 +72,14 @@ Single payments, batch payments and withdrawals now share an aligned toolbar wit
 The FX workspace includes **各戶口結存概況** with the actual linked bank accounts and source currency totals. Currency aggregates are labelled separately from individual account balances. The exchange form and trend chart share aligned card edges. Both updates apply to the customer login and the full-administrator customer workspace.
 
 Run `node scripts/verify-payment-instant.mjs` and `node scripts/verify-fx-account-overview.mjs` for the focused follow-up checks. Application progress is available to agents under **申請進度** and to HQ under **客戶與開戶 → 開戶申請工作台**; both use the application search, source, owner and date filters.
+
+
+## 2026-11-10 wallets, navigation and reference rates
+
+Sidebar navigation and the logo no longer have outer outlines. The active page, hover state and keyboard focus remain visible; other action buttons keep their existing treatment. Mobile navigation groups stack vertically.
+
+**Wallets and assets** is available to customers and to HQ under Customer eBanking. Fiat wallets adapt the supplied currency aggregates without duplicating bank balances. USDT wallets are separate per customer and network, with TRON (TRC20) and Ethereum (ERC20) choices. Missing balances remain unavailable until an explicit simulated deposit. Same-network demo transfers use integer millionths and produce a separate wallet ledger. They never change bank balances, bank transactions, commissions, or the original FX basis. Receiving addresses are not assigned, and no custody key, real deposit, blockchain transfer or bridge is created. HQ wallet state survives page and customer switches; frozen customers are read-only.
+
+The market-reference panel polls the public Coinbase exchange-rates endpoint every 30 seconds while an applicable view is visible. One feed is shared by HQ and its customer frames. It shows local retrieval time, not a provider quote timestamp. USDT uses its market rate; missing CNH is never replaced by CNY. Failed requests keep the last successful reference with an explicit stale state, and HTTP 429 uses backoff. Background polling does not reset input fields, modals or demo trade quotes. The existing sample chart is labelled illustrative. See [API integration notes](docs/rates-api.md).
+
+Run `node scripts/verify-wallets.mjs` and `node scripts/verify-market-rates.mjs` for focused checks, along with the existing payment, FX and scope regressions. Customer balances and actions remain local demo state; only public market data is fetched externally.

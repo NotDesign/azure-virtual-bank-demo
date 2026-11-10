@@ -1,0 +1,12 @@
+/* Plain sidebar navigation; action buttons elsewhere retain their existing outlines. */
+.sidebar .brand{border:0;box-shadow:none;background:transparent;outline:none}
+.sidebar .brand:hover{border:0;box-shadow:none;background:transparent}
+.sidebar .brand:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mobile-menu-body .nav{display:block;width:100%}
+:is(.sidebar,.mobile-menu-body) .nav a{border:0;box-shadow:none;outline:none;background:transparent;align-items:center}
+:is(.sidebar,.mobile-menu-body) .nav a .ico{flex:0 0 20px;align-self:center}
+:is(.sidebar,.mobile-menu-body) .nav a:hover{background:var(--accent-soft);color:var(--color-text);box-shadow:none}
+:is(.sidebar,.mobile-menu-body) .nav a.active,:is(.sidebar,.mobile-menu-body) .nav a.active:hover{background:var(--accent);color:#fff;box-shadow:none}
+:is(.sidebar,.mobile-menu-body) .nav a.active .ico{color:#fff}
+:is(.sidebar,.mobile-menu-body) .nav a:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+:is(.sidebar,.mobile-menu-body) .nav a.active:focus-visible{outline-color:#fff;outline-offset:-4px}
