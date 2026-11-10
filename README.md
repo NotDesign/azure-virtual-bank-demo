@@ -83,3 +83,16 @@ Sidebar navigation and the logo no longer have outer outlines. The active page, 
 The market-reference panel polls the public Coinbase exchange-rates endpoint every 30 seconds while an applicable view is visible. One feed is shared by HQ and its customer frames. It shows local retrieval time, not a provider quote timestamp. USDT uses its market rate; missing CNH is never replaced by CNY. Failed requests keep the last successful reference with an explicit stale state, and HTTP 429 uses backoff. Background polling does not reset input fields, modals or demo trade quotes. The existing sample chart is labelled illustrative. See [API integration notes](docs/rates-api.md).
 
 Run `node scripts/verify-wallets.mjs` and `node scripts/verify-market-rates.mjs` for focused checks, along with the existing payment, FX and scope regressions. Customer balances and actions remain local demo state; only public market data is fetched externally.
+
+
+## Wallet workbench reference update
+
+The wallet workspace now separates wallets and transaction history. Its asset overview groups bank/fiat and digital wallets, supports USD/HKD reference display and amount privacy, and counts missing balances or rates separately. A reference subtotal includes only assets with both supplied balances and a usable market rate. Fiat currency aggregates are counted once, even when several bank accounts share a currency.
+
+Wallet history supports record/party search, type, network, inclusive Hong Kong dates and selected-wallet/all-owned-wallet filters. A detail drawer shows only the supplied demo ledger fields. CSV export follows the applied filters, protects text cells from spreadsheet formula execution, and explicitly exports the underlying amounts even when screen privacy is enabled. Wallet visibility, filters and display preferences remain scoped to the selected customer session.
+
+**Conversion preview** groups source/destination choices by bank/fiat and digital wallets. It uses the market-reference feed, including the actual USDT rate, shows the retrieval time and stale/unavailable states, and preserves entered amounts during refreshes. It is read-only: it does not submit an exchange, debit funds, produce a transaction or estimate fees. A missing CNH rate is not substituted with CNY.
+
+Bank account details open in a responsive side drawer with per-field copy, copy-all and a UTF-8 text download made from the displayed source fields. Clipboard denial offers a selected text fallback. Existing account proof and confirmation actions remain available. Missing customer banking data never borrows another customer's fixture.
+
+Run `node scripts/verify-wallet-workbench.mjs`, `node scripts/verify-wallet-activity.mjs` and `node scripts/verify-bank-account-tools.mjs`, alongside the wallet, payment, FX, market-rate and scope regressions. The external reference recording and extracted frames are private QA material and are not distributed. No card issuance, acquiring API, blockchain execution or external KYC integration is introduced by this update.

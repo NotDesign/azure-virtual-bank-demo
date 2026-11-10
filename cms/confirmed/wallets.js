@@ -9,8 +9,13 @@
   const frozen=()=>{const c=cust(CID());return c?.status==='冻结'||c?.frz?.scopes?.some(k=>['all','pay'].includes(k));};
   const editable=()=>ownId()===CID()&&!frozen();
   let pending=null,unsubscribe=null;
-  function blank(id){return {customerId:id,selectedId:'',crypto:Object.keys(NETWORKS).map(network=>({id:`usdt-${id}-${network}`,customerId:id,name:`USDT · ${NETWORKS[network]}`,asset:'USDT',network,availableUnits:null,frozenUnits:null,basis:null})),ledger:[]};}
-  function pack(id=CID()){if(!stores.has(id))stores.set(id,blank(id));return stores.get(id);}
+  const defaultPreferences=()=>({hideBalances:false,displayCurrency:'USD',tab:'wallets',filters:{scope:'selected',query:'',type:'',network:'',from:'',to:''}});
+  function blank(id){return {customerId:id,selectedId:'',preferences:defaultPreferences(),crypto:Object.keys(NETWORKS).map(network=>({id:`usdt-${id}-${network}`,customerId:id,name:`USDT · ${NETWORKS[network]}`,asset:'USDT',network,availableUnits:null,frozenUnits:null,basis:null})),ledger:[]};}
+  function pack(id=CID()){if(!stores.has(id))stores.set(id,blank(id));const p=stores.get(id),defaults=defaultPreferences();p.preferences={...defaults,...p.preferences,filters:{...defaults.filters,...p.preferences?.filters}};return p;}
+  function validPreferences(p){
+    const f=p?.filters,isDate=s=>s===''||/^\d{4}-\d{2}-\d{2}$/.test(s)&&Number.isFinite(Date.parse(s+'T00:00:00Z'))&&new Date(s+'T00:00:00Z').toISOString().slice(0,10)===s;
+    return typeof p?.hideBalances==='boolean'&&['USD','HKD'].includes(p.displayCurrency)&&['wallets','activity'].includes(p.tab)&&f&&['selected','all'].includes(f.scope)&&typeof f.query==='string'&&f.query.length<=200&&['','credit','transfer-in','transfer-out'].includes(f.type)&&['','tron','ethereum'].includes(f.network)&&typeof f.from==='string'&&typeof f.to==='string'&&isDate(f.from)&&isDate(f.to)&&(!f.from||!f.to||f.from<=f.to);
+  }
   function list(id=CID()){
     if(!allowed(id))return [];
     const bank=BALANCES[id]||{},ccys=[...new Set([...ACCOUNTS.filter(a=>a.cust===id).map(a=>a.ccy),...Object.keys(bank)])];
@@ -21,7 +26,7 @@
     const [whole,fraction='']=s.split('.'),n=Number(whole)*SCALE+Number(fraction.padEnd(6,'0'));
     return Number.isSafeInteger(n)&&n>0&&n<=MAX_UNITS?n:null;
   }
-  function fmt(value,asset){return value===null?T('未提供','未提供','Not supplied'):Number(value).toLocaleString(I18N.lang==='en'?'en-US':'zh-TW',{minimumFractionDigits:2,maximumFractionDigits:asset==='USDT'?6:2});}
+  function fmt(value,asset){return value===null?T('未提供','未提供','Not supplied'):pack().preferences.hideBalances?'••••':Number(value).toLocaleString(I18N.lang==='en'?'en-US':'zh-TW',{minimumFractionDigits:2,maximumFractionDigits:asset==='USDT'?6:2});}
   function selected(){const p=pack(),items=list();let w=items.find(w=>w.id===p.selectedId);if(!w){w=items[0];p.selectedId=w?.id||'';}return w;}
   function cryptoWallet(id){return pack().crypto.find(w=>w.id===id&&w.customerId===CID());}
   function actor(){const a=window.AzureAdminChild?parent.AzureBridge?.account:window.AzureBridge?.account;return {role:a?.role||'cust',email:a?.email||'',customerId:CID()};}
@@ -32,13 +37,22 @@
   function walletModal(title,body,footer){modal(title,body,footer);document.querySelector('.modal[role=dialog]')?.setAttribute('aria-label',title);}
   function modalError(){return '<p id="wallet-form-error" class="wallet-form-error" role="alert" hidden></p>';}
   const API=window.AzureWallets={
-    ready:true,list:()=>clone(list()),
+    ready:true,list:()=>clone(list()),formatAmount:fmt,
     snapshot(id=CID()){return allowed(id)?clone(pack(id)):null;},
+    preferences(update){
+      if(ownId()!==CID()||!update||typeof update!=='object'||Array.isArray(update))return false;
+      if(Object.keys(update).some(k=>!['hideBalances','displayCurrency','tab','filters'].includes(k)))return false;
+      const current=pack().preferences,next={...current,...update,filters:{...current.filters,...update.filters}};
+      if(update.filters&&(typeof update.filters!=='object'||Array.isArray(update.filters)||Object.keys(update.filters).some(k=>!Object.keys(defaultPreferences().filters).includes(k))))return false;
+      if(!validPreferences(next))return false;
+      pack().preferences=clone(next);render();return true;
+    },
     restore(id,data,token){
       const admin=window.AzureBridge?.account?.role==='hq';
       const delegation=parent!==window&&parent.AzureBridge?.account?.role==='hq'&&token&&window.frameElement?.dataset.adminChannel===token&&parent.document.getElementById('admin-customer-select')?.value===id;
       if((!admin&&!delegation)||!CUSTOMERS.some(c=>c.id===id)||!data||data.customerId!==id||!Array.isArray(data.crypto)||!Array.isArray(data.ledger))return false;
       if(new Set(data.crypto.map(w=>w.id)).size!==data.crypto.length)return false;
+      if(data.preferences&&!validPreferences(data.preferences))return false;
       if(data.crypto.some(w=>w.customerId!==id||w.asset!=='USDT'||!NETWORKS[w.network]||typeof w.id!=='string'||typeof w.name!=='string'||w.name.length>80||[w.availableUnits,w.frozenUnits].some(n=>n!==null&&(!Number.isSafeInteger(n)||n<0||n>MAX_UNITS))))return false;
       if(data.ledger.some(r=>r.customerId!==id||!data.crypto.some(w=>w.id===r.walletId)||!Number.isSafeInteger(r.amountUnits)||r.amountUnits<=0))return false;
       stores.set(id,clone(data));return true;
