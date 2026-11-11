@@ -96,3 +96,16 @@ Wallet history supports record/party search, type, network, inclusive Hong Kong 
 Bank account details open in a responsive side drawer with per-field copy, copy-all and a UTF-8 text download made from the displayed source fields. Clipboard denial offers a selected text fallback. Existing account proof and confirmation actions remain available. Missing customer banking data never borrows another customer's fixture.
 
 Run `node scripts/verify-wallet-workbench.mjs`, `node scripts/verify-wallet-activity.mjs` and `node scripts/verify-bank-account-tools.mjs`, alongside the wallet, payment, FX, market-rate and scope regressions. The external reference recording and extracted frames are private QA material and are not distributed. No card issuance, acquiring API, blockchain execution or external KYC integration is introduced by this update.
+
+
+## 2026-11-11 USDT funding simulation and usability
+
+USDT deposits and withdrawals now have operational Demo flows for TRON (TRC20) and Ethereum (ERC20). Deposit requests show a deliberately non-payable `DEMO-` address and an `azure-demo://` QR payload. Pending deposits do not affect available funds; an explicit simulated completion credits the wallet. Withdrawals collect a network-specific destination and amount, review the principal, illustrative Demo fee and total, then require the displayed Demo code. No email, SMS, custody service or blockchain transaction is involved.
+
+A pending withdrawal moves the full principal plus fee from available to reserved funds. Completion removes the reservation; cancellation or failure refunds it in full. Repeated submissions with the same request key and repeated terminal actions do not duplicate balance changes. All quantities use integer millionths. The illustrative fees are 1 USDT for TRON and 3 USDT for Ethereum; they are local demonstration rules, not current network quotes. A request selects its operation wallet after creation so it can be recovered from the wallet workspace. Pending requests, final outcomes and customer-specific history survive workspace navigation within the authenticated session. Refreshing the app starts fresh Demo state.
+
+Transaction history distinguishes requested principal, Demo fee, reserved funds and settled value, with type and state filters, scoped record details and matching CSV fields. Failed or cancelled requests are not presented as settled withdrawals. The funding flow includes sample filling, validation, a maximum amount after fees, a review step, a visible Demo code and manual outcome controls. Frozen customers remain read-only.
+
+USDT, TRC20, ERC20 and funding keywords now find the permitted wallet entry in global and sidebar search. Wallet actions precede detailed valuations, and the Transactions tab presents its own content without the unrelated market and asset cards. Mobile wallet and transaction cards keep their action buttons in view. A shared eye control toggles amount privacy from either tab. First-use and filtered-empty history states offer distinct next actions.
+
+Run `scripts/verify-wallet-funding.mjs`, `scripts/verify-wallet-funding-ui.mjs` and `scripts/verify-wallet-usability.mjs`, plus the wallet/activity/workbench, payment, FX, reference-rate and role-scope regressions. No personal reference video, private document or extracted reference frame is included in the release.

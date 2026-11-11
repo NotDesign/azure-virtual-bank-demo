@@ -48,9 +48,9 @@ async function createWallet(frame,name,network){
  await frame.waitForFunction(({name,network})=>AzureWallets.snapshot().crypto.some(w=>w.name===name&&w.network===network),{name,network});
  return (await pack(frame)).crypto.find(w=>w.name===name&&w.network===network);
 }
-async function credit(frame,id,amount){await selectWallet(frame,id);await frame.locator('.wallet-credit-btn').click();await frame.locator('#wallet-credit-amount').fill(amount);await frame.locator('.wallet-credit-submit').click();}
+async function credit(frame,id,amount){await selectWallet(frame,id);await frame.evaluate(()=>AzureWallets.openCredit());await frame.locator('#wallet-credit-amount').fill(amount);await frame.locator('.wallet-credit-submit').click();}
 async function invalidCredit(frame,id,value,name){
- await selectWallet(frame,id);const before=await pack(frame);await frame.locator('.wallet-credit-btn').click();
+ await selectWallet(frame,id);const before=await pack(frame);await frame.evaluate(()=>AzureWallets.openCredit());
  await frame.locator('#wallet-credit-amount').evaluate((input,value)=>{input.type='text';input.value=value;if(input.form)input.form.noValidate=true;},value);
  await frame.locator('.wallet-credit-submit').click();check(name+' does not change wallet balances or ledger',normalize(await pack(frame))===normalize(before));await closeModal(frame);
 }
@@ -116,7 +116,7 @@ try{
   await invalidTransfer(frame,a.id,c.id,'1',role+' forced cross-network transfer');
   await invalidTransfer(frame,a.id,'MISSING-QA-WALLET','1',role+' missing-wallet transfer');
 
-  await selectWallet(frame,a.id);await frame.locator('.wallet-info-btn').click();
+  await selectWallet(frame,a.id);await frame.evaluate(()=>AzureWallets.info());
   const info=await frame.locator('.modal').innerText();
   check(role+' deposit information names the network and explicitly has no assigned custody address',/Demo/i.test(info)&&/TRON|TRC.?20/i.test(info)&&/尚未分配|未分配|No on-chain receiving address assigned/i.test(info)&&!/\bT[1-9A-HJ-NP-Za-km-z]{33}\b|\b0x[a-fA-F0-9]{40}\b/.test(info),info);
   check(role+' receive information does not invent a funding QR code',await frame.locator('.modal canvas,.modal .qr img,.modal [data-wallet-qr] img,.modal .wallet-qr img').count()===0);await closeModal(frame);
@@ -155,7 +155,7 @@ try{
    const geometry=await Promise.all([parentFrame.evaluate(()=>({view:innerWidth,scroll:document.documentElement.scrollWidth})),frame.evaluate(()=>({view:innerWidth,scroll:document.documentElement.scrollWidth}))]);
    const name=role+' '+width+' '+locale+' '+theme;
    check(name+' parent and wallet frames have no body overflow',geometry.every(g=>g.scroll<=g.view),geometry);
-   for(const [selector,label]of [['#wallet-new-btn','new wallet'],['.wallet-credit-btn','Demo credit'],['.wallet-transfer-btn','same-chain transfer'],['.wallet-info-btn','Demo deposit information']]){await frame.locator(selector).click();await checkModal(frame,name+' '+label);}
+   for(const [action,label]of [['openNew','new wallet'],['openCredit','legacy Demo credit API'],['openTransfer','same-chain transfer'],['info','legacy deposit info API']]){await frame.evaluate(action=>AzureWallets[action](),action);await checkModal(frame,name+' '+label);}
   }
   check(role+' original financial fixtures stay unchanged through all wallet operations',await financial(parentFrame)===parentFinancial);
   await page.close();

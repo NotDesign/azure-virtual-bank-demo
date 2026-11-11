@@ -9,12 +9,12 @@
   const frozen=()=>{const c=cust(CID());return c?.status==='冻结'||c?.frz?.scopes?.some(k=>['all','pay'].includes(k));};
   const editable=()=>ownId()===CID()&&!frozen();
   let pending=null,unsubscribe=null;
-  const defaultPreferences=()=>({hideBalances:false,displayCurrency:'USD',tab:'wallets',filters:{scope:'selected',query:'',type:'',network:'',from:'',to:''}});
+  const defaultPreferences=()=>({hideBalances:false,displayCurrency:'USD',tab:'wallets',filters:{scope:'selected',query:'',type:'',status:'',network:'',from:'',to:''}});
   function blank(id){return {customerId:id,selectedId:'',preferences:defaultPreferences(),crypto:Object.keys(NETWORKS).map(network=>({id:`usdt-${id}-${network}`,customerId:id,name:`USDT · ${NETWORKS[network]}`,asset:'USDT',network,availableUnits:null,frozenUnits:null,basis:null})),ledger:[]};}
   function pack(id=CID()){if(!stores.has(id))stores.set(id,blank(id));const p=stores.get(id),defaults=defaultPreferences();p.preferences={...defaults,...p.preferences,filters:{...defaults.filters,...p.preferences?.filters}};return p;}
   function validPreferences(p){
     const f=p?.filters,isDate=s=>s===''||/^\d{4}-\d{2}-\d{2}$/.test(s)&&Number.isFinite(Date.parse(s+'T00:00:00Z'))&&new Date(s+'T00:00:00Z').toISOString().slice(0,10)===s;
-    return typeof p?.hideBalances==='boolean'&&['USD','HKD'].includes(p.displayCurrency)&&['wallets','activity'].includes(p.tab)&&f&&['selected','all'].includes(f.scope)&&typeof f.query==='string'&&f.query.length<=200&&['','credit','transfer-in','transfer-out'].includes(f.type)&&['','tron','ethereum'].includes(f.network)&&typeof f.from==='string'&&typeof f.to==='string'&&isDate(f.from)&&isDate(f.to)&&(!f.from||!f.to||f.from<=f.to);
+    return typeof p?.hideBalances==='boolean'&&['USD','HKD'].includes(p.displayCurrency)&&['wallets','activity'].includes(p.tab)&&f&&['selected','all'].includes(f.scope)&&typeof f.query==='string'&&f.query.length<=200&&['','credit','transfer-in','transfer-out','deposit','withdraw'].includes(f.type)&&['','pending','completed','failed','cancelled'].includes(f.status??'')&&['','tron','ethereum'].includes(f.network)&&typeof f.from==='string'&&typeof f.to==='string'&&isDate(f.from)&&isDate(f.to)&&(!f.from||!f.to||f.from<=f.to);
   }
   function list(id=CID()){
     if(!allowed(id))return [];
@@ -22,6 +22,7 @@
     return ccys.map(asset=>({id:`fiat-${id}-${asset}`,customerId:id,name:T(`${asset} 法幣錢包`,`${asset} 法币钱包`,`${asset} fiat wallet`),kind:'fiat',asset,network:null,available:Number.isFinite(bank[asset]?.a)?bank[asset].a:null,frozen:Number.isFinite(bank[asset]?.f)?bank[asset].f:null,basis:'bank',accounts:ACCOUNTS.filter(a=>a.cust===id&&a.ccy===asset)})).concat(pack(id).crypto.map(w=>({...w,kind:'crypto',available:w.availableUnits===null?null:w.availableUnits/SCALE,frozen:w.frozenUnits===null?null:w.frozenUnits/SCALE})));
   }
   function units(value){
+    if(!['string','number'].includes(typeof value))return null;
     const s=String(value??'').trim();if(!/^\d+(?:\.\d{1,6})?$/.test(s))return null;
     const [whole,fraction='']=s.split('.'),n=Number(whole)*SCALE+Number(fraction.padEnd(6,'0'));
     return Number.isSafeInteger(n)&&n>0&&n<=MAX_UNITS?n:null;
@@ -34,7 +35,7 @@
   function formError(message){const e=document.getElementById('wallet-form-error');if(e){e.textContent=message;e.hidden=false;}else toast(message);}
   function checkPending(kind){return editable()&&pending?.kind===kind&&pending.customerId===CID();}
   function errorText(){return T('請確認錢包、網路及金額；金額須大於 0，最多 6 位小數，且不可超過可用結存。','请确认钱包、网络及金额；金额须大于 0，最多 6 位小数，且不可超过可用结存。','Check the wallet, network and amount. Use a positive amount with up to 6 decimals within the available balance.');}
-  function walletModal(title,body,footer){modal(title,body,footer);document.querySelector('.modal[role=dialog]')?.setAttribute('aria-label',title);}
+  function walletModal(title,body,footer){modal(title,body,footer);const dialog=document.querySelector('.modal[role=dialog]');if(dialog){dialog.setAttribute('aria-label',title);dialog.tabIndex=-1;(dialog.querySelector('.modal-body input:not([type=hidden]),.modal-body select')||dialog.querySelector('.modal-head button')||dialog).focus();}}
   function modalError(){return '<p id="wallet-form-error" class="wallet-form-error" role="alert" hidden></p>';}
   const API=window.AzureWallets={
     ready:true,list:()=>clone(list()),formatAmount:fmt,
@@ -55,6 +56,8 @@
       if(data.preferences&&!validPreferences(data.preferences))return false;
       if(data.crypto.some(w=>w.customerId!==id||w.asset!=='USDT'||!NETWORKS[w.network]||typeof w.id!=='string'||typeof w.name!=='string'||w.name.length>80||[w.availableUnits,w.frozenUnits].some(n=>n!==null&&(!Number.isSafeInteger(n)||n<0||n>MAX_UNITS))))return false;
       if(data.ledger.some(r=>r.customerId!==id||!data.crypto.some(w=>w.id===r.walletId)||!Number.isSafeInteger(r.amountUnits)||r.amountUnits<=0))return false;
+      if(new Set(data.ledger.map(r=>r.id)).size!==data.ledger.length||data.ledger.some(r=>!validFundingSnapshotRow(r,data.crypto)))return false;
+      if(data.crypto.some(w=>(w.availableUnits??0)+(w.frozenUnits??0)>MAX_UNITS||data.ledger.filter(r=>r.walletId===w.id&&r.kind==='withdraw'&&r.status==='pending').reduce((n,r)=>n+r.reservedUnits,0)>(w.frozenUnits??0)))return false;
       stores.set(id,clone(data));return true;
     },
     select(id){if(ownId()!==CID()||!list().some(w=>w.id===id))return;pack().selectedId=id;render();},
@@ -80,7 +83,7 @@
     credit(){
       if(!checkPending('credit'))return;
       const w=cryptoWallet(pending.walletId),n=units(document.getElementById('wallet-credit-amount')?.value);
-      if(!w||n===null||(w.availableUnits??0)+n>MAX_UNITS)return formError(errorText());
+      if(!w||n===null||(w.availableUnits??0)+(w.frozenUnits??0)+n>MAX_UNITS)return formError(errorText());
       w.availableUnits=(w.availableUnits??0)+n;w.frozenUnits??=0;w.basis='demo';entry('credit',w,n);pending=null;closeModal();render();
     },
     openTransfer(){
@@ -94,12 +97,113 @@
     transfer(){
       if(!checkPending('transfer'))return;
       const from=cryptoWallet(pending.walletId),to=cryptoWallet(document.getElementById('wallet-transfer-target')?.value),n=units(document.getElementById('wallet-transfer-amount')?.value);
-      if(!from||!to||from.id===to.id||from.network!==to.network||from.asset!==to.asset||n===null||from.availableUnits===null||from.availableUnits<n||(to.availableUnits??0)+n>MAX_UNITS)return formError(errorText());
+      if(!from||!to||from.id===to.id||from.network!==to.network||from.asset!==to.asset||n===null||from.availableUnits===null||from.availableUnits<n||(to.availableUnits??0)+(to.frozenUnits??0)+n>MAX_UNITS)return formError(errorText());
       from.availableUnits-=n;to.availableUnits=(to.availableUnits??0)+n;to.frozenUnits??=0;to.basis='demo';entry('transfer-out',from,n,to);entry('transfer-in',to,n,from);pending=null;closeModal();render();
     },
     info(){
       const w=selected();if(w?.kind!=='crypto')return;
       walletModal(T('收款資訊','收款信息','Receive details'),`<div class="wallet-receive"><span class="wallet-token">₮</span><h3>${esc(w.name)}</h3><p>USDT · ${NETWORKS[w.network]}</p><div class="wallet-address-empty">${T('尚未分配鏈上收款地址','尚未分配链上收款地址','No on-chain receiving address assigned')}</div><p class="small muted">${T('目前為 Demo，未連接託管服務。切換網路不會共用收款地址。','目前为 Demo，未连接托管服务。切换网络不会共用收款地址。','This demo is not connected to a custody service. Receiving addresses are network-specific.')}</p></div>`,`<button class="btn" onclick="closeModal()">${T('關閉','关闭','Close')}</button>`);
+    }
+  };
+  // Funding is a local simulation; no custody address, chain RPC or external payment is used.
+  const FUNDING_KINDS=['deposit','withdraw'],FUNDING_STATES=['pending','completed','failed','cancelled'];
+  const FEES={tron:1000000,ethereum:3000000},DEMO_CODE='654321';
+  const fundingError=error=>({ok:false,error});
+  function fundingWallet(walletId,network){
+    if(ownId()!==CID())return fundingError('scope');
+    if(frozen())return fundingError('frozen');
+    const wallet=cryptoWallet(walletId);if(!wallet)return fundingError('wallet');
+    if(network!==wallet.network||!NETWORKS[network])return fundingError('network');
+    return {ok:true,wallet};
+  }
+  function fundingAddress(network,address){
+    if(typeof address!=='string'||address.length>120)return false;
+    return network==='tron'?/^(?:DEMO-TRC20-[A-Z0-9-]{8,80}|T[1-9A-HJ-NP-Za-km-z]{33})$/.test(address):network==='ethereum'&&/^(?:DEMO-ERC20-[A-Z0-9-]{8,80}|0x[0-9a-fA-F]{40})$/.test(address);
+  }
+  function fundingRecord(id){return ownId()===CID()?pack().ledger.find(r=>r.id===id&&r.customerId===CID()&&FUNDING_KINDS.includes(r.kind)):null;}
+  function fundingInput(input,kind){
+    if(!input||typeof input!=='object'||Array.isArray(input))return fundingError('wallet');
+    const checked=fundingWallet(input.walletId,input.network);if(!checked.ok)return checked;
+    const amountUnits=units(input.amount);if(amountUnits===null)return fundingError('amount');
+    const requestId=input.requestId;if(typeof requestId!=='string'||!/^[A-Za-z0-9_-]{8,100}$/.test(requestId))return fundingError('request-id');
+    const memo=input.memo??'';if(typeof memo!=='string'||memo.length>140||/[\u0000-\u001f<>]/.test(memo))return fundingError('memo');
+    const feeUnits=kind==='withdraw'?FEES[checked.wallet.network]:0,totalUnits=amountUnits+feeUnits;
+    if(!Number.isSafeInteger(totalUnits)||totalUnits>MAX_UNITS)return fundingError('amount');
+    const address=kind==='deposit'?FUNDING.address(input.walletId).address:typeof input.address==='string'?input.address.trim():'';
+    if(!fundingAddress(checked.wallet.network,address))return fundingError('address');
+    if(kind==='withdraw'&&input.networkConfirmed!==true)return fundingError('confirmation');
+    if(kind==='withdraw'&&input.otp!==DEMO_CODE)return fundingError('otp');
+    const signature=JSON.stringify([kind,checked.wallet.id,checked.wallet.network,amountUnits,address,memo.trim()]);
+    const existing=pack().ledger.find(r=>r.requestId===requestId);
+    if(existing)return existing.requestSignature===signature?{ok:true,existing}:{ok:false,error:'request-conflict'};
+    return {ok:true,wallet:checked.wallet,amountUnits,feeUnits,totalUnits,address,memo:memo.trim(),requestId,signature};
+  }
+  function createFunding(input,kind){
+    const checked=fundingInput(input,kind);if(!checked.ok)return checked;
+    if(checked.existing)return {ok:true,record:clone(checked.existing),duplicate:true};
+    const {wallet,amountUnits,feeUnits,totalUnits,address,memo,requestId,signature}=checked;
+    if(kind==='withdraw'&&(wallet.availableUnits===null||wallet.availableUnits<totalUnits))return fundingError('balance');
+    if(kind==='withdraw'&&((wallet.frozenUnits??0)+totalUnits>MAX_UNITS))return fundingError('balance-limit');
+    if(kind==='deposit'&&(wallet.availableUnits??0)+(wallet.frozenUnits??0)+amountUnits>MAX_UNITS)return fundingError('balance-limit');
+    const time=new Date().toISOString();
+    const record={id:'WLT-'+crypto.randomUUID(),customerId:CID(),walletId:wallet.id,kind,asset:'USDT',network:wallet.network,amountUnits,feeUnits,totalUnits,status:'pending',reservedUnits:kind==='withdraw'?totalUnits:0,settledUnits:0,address,reference:'DEMO-'+crypto.randomUUID().replace(/-/g,'').slice(0,20).toUpperCase(),memo,requestId,requestSignature:signature,date:time,updatedAt:time,actor:actor()};
+    if(kind==='withdraw'){wallet.availableUnits-=totalUnits;wallet.frozenUnits=(wallet.frozenUnits??0)+totalUnits;}
+    pack().ledger.unshift(record);pack().selectedId=wallet.id;render();return {ok:true,record:clone(record)};
+  }
+  function validFundingSnapshotRow(row,wallets){
+    if(!FUNDING_KINDS.includes(row.kind))return ['credit','transfer-in','transfer-out'].includes(row.kind);
+    const wallet=wallets.find(w=>w.id===row.walletId);
+    if(!wallet||row.asset!=='USDT'||row.network!==wallet.network||!FUNDING_STATES.includes(row.status)||typeof row.id!=='string'||!Number.isFinite(Date.parse(row.date))||!Number.isFinite(Date.parse(row.updatedAt)))return false;
+    if(!Number.isSafeInteger(row.feeUnits)||row.feeUnits!==(row.kind==='withdraw'?FEES[row.network]:0)||row.totalUnits!==row.amountUnits+row.feeUnits||row.totalUnits>MAX_UNITS)return false;
+    if(row.reservedUnits!==(row.kind==='withdraw'&&row.status==='pending'?row.totalUnits:0)||row.settledUnits!==(row.status==='completed'?row.totalUnits:0))return false;
+    return fundingAddress(row.network,row.address)&&typeof row.reference==='string'&&/^DEMO-[A-Z0-9]{20}$/.test(row.reference)&&typeof row.requestId==='string'&&/^[A-Za-z0-9_-]{8,100}$/.test(row.requestId)&&typeof row.requestSignature==='string'&&typeof row.memo==='string'&&row.memo.length<=140;
+  }
+  const FUNDING=API.funding={
+    config:()=>({demoCode:DEMO_CODE,feeUnits:{...FEES},scale:SCALE}),
+    address(walletId){
+      if(ownId()!==CID())return fundingError('scope');
+      const wallet=cryptoWallet(walletId);if(!wallet)return fundingError('wallet');
+      const prefix=wallet.network==='tron'?'DEMO-TRC20-':'DEMO-ERC20-',suffix=(CID()+'-'+wallet.id).replace(/[^A-Za-z0-9-]/g,'').toUpperCase().slice(0,76),address=prefix+suffix;
+      const query=new URLSearchParams({wallet:wallet.id,network:wallet.network,address});
+      return {ok:true,walletId:wallet.id,network:wallet.network,address,qrPayload:'azure-demo://deposit?'+query.toString()};
+    },
+    quote(input){
+      if(!input||typeof input!=='object')return fundingError('wallet');
+      const checked=fundingWallet(input.walletId,input.network);if(!checked.ok)return checked;
+      const feeUnits=FEES[checked.wallet.network],availableUnits=checked.wallet.availableUnits,maxUnits=availableUnits===null?null:Math.max(0,availableUnits-feeUnits),amountUnits=units(input.amount);
+      if(amountUnits===null)return {...fundingError('amount'),feeUnits,availableUnits,maxUnits};
+      const totalUnits=amountUnits+feeUnits;
+      if(!Number.isSafeInteger(totalUnits)||totalUnits>MAX_UNITS)return {...fundingError('amount'),feeUnits,availableUnits,maxUnits};
+      if(availableUnits===null||totalUnits>availableUnits)return {...fundingError('balance'),amountUnits,feeUnits,totalUnits,availableUnits,maxUnits};
+      return {ok:true,amountUnits,feeUnits,totalUnits,availableUnits,maxUnits,network:checked.wallet.network};
+    },
+    validAddress:fundingAddress,
+    createDeposit:input=>createFunding(input,'deposit'),
+    createWithdrawal:input=>createFunding(input,'withdraw'),
+    records(walletId){
+      if(ownId()!==CID())return [];
+      if(walletId&&!cryptoWallet(walletId))return [];
+      return clone(pack().ledger.filter(r=>r.customerId===CID()&&FUNDING_KINDS.includes(r.kind)&&(!walletId||r.walletId===walletId)));
+    },
+    get(id){const record=fundingRecord(id);return record?clone(record):null;},
+    transition(id,status){
+      if(ownId()!==CID())return fundingError('scope');if(frozen())return fundingError('frozen');
+      const record=fundingRecord(id);if(!record)return fundingError('record');
+      if(!FUNDING_STATES.includes(status)||status==='pending')return fundingError('status');
+      if(record.status!=='pending')return fundingError('final');
+      const wallet=cryptoWallet(record.walletId);if(!wallet||wallet.network!==record.network)return fundingError('wallet');
+      if(record.kind==='deposit'&&status==='completed'){
+        if((wallet.availableUnits??0)+(wallet.frozenUnits??0)+record.amountUnits>MAX_UNITS)return fundingError('balance-limit');
+        wallet.availableUnits=(wallet.availableUnits??0)+record.amountUnits;wallet.frozenUnits??=0;wallet.basis='demo';
+      }
+      if(record.kind==='withdraw'){
+        if(wallet.frozenUnits===null||wallet.frozenUnits<record.totalUnits)return fundingError('balance');
+        if(status!=='completed'&&(wallet.availableUnits??0)+record.totalUnits>MAX_UNITS)return fundingError('balance-limit');
+        wallet.frozenUnits-=record.totalUnits;
+        if(status!=='completed')wallet.availableUnits=(wallet.availableUnits??0)+record.totalUnits;
+      }
+      record.status=status;record.reservedUnits=0;record.settledUnits=status==='completed'?record.totalUnits:0;record.updatedAt=new Date().toISOString();
+      render();return {ok:true,record:clone(record)};
     }
   };
   function valueMarkup(w){return `<span data-wallet-estimate="${esc(w.id)}">—</span><small>${T('USD 市場參考值','USD 市场参考值','USD reference value')}</small>`;}

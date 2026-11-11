@@ -56,7 +56,7 @@ try {
 
   await frame.locator('#wallet-workbench-tab-activity').click();
   check(await frame.locator('.wallet-toolbar').isHidden() && await frame.locator('.wallet-selected').isHidden() && await frame.locator('.wallet-list-card').isHidden() && await frame.locator('.wallet-history').isVisible(), 'Transactions tab retains the ledger root and hides wallet-only controls');
-  check(await frame.locator('.amr-panel').isVisible(), 'Independent market panel remains visible on Transactions');
+  check(await frame.locator('.amr-panel').isHidden() && await frame.locator('.wallet-classification').isHidden(), 'Transactions prioritizes activity without unrelated asset and market cards');
   check(await frame.evaluate(() => document.activeElement.id === 'wallet-workbench-tab-activity'), 'Tab switch restores keyboard focus');
   await page.keyboard.press('ArrowLeft');
   check((await overview()).preferences.tab === 'wallets', 'Arrow key returns to Wallets through preferences');
@@ -77,7 +77,7 @@ try {
   check(await frame.locator('[data-wallet-quote-max]').isDisabled(), 'Max remains disabled for an unknown source balance');
   await frame.locator('.modal-head .icon-btn').click();
   await frame.locator('#wallet-select').selectOption(ids.tron);
-  await frame.locator('.wallet-credit-btn').click();
+  await frame.evaluate(()=>AzureWallets.openCredit());
   await frame.locator('#wallet-credit-amount').fill('1000');
   await frame.locator('.wallet-credit-submit').click();
   check((await overview()).values.crypto === '6,400.00', 'A supplied simulated USDT balance appears in the reference subtotal');

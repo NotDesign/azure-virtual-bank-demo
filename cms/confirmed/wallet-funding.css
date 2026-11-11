@@ -1,0 +1,81 @@
+/* Scoped deposit/withdraw Demo dialogs; existing payment and camera flows are unchanged. */
+.wallet-funding-modal{width:840px;display:flex;flex-direction:column;overflow:hidden}
+.wallet-funding-modal>.modal-head,.wallet-funding-modal>.modal-foot{flex:none}
+.wallet-funding-modal>.modal-head{gap:16px}
+.wallet-funding-modal>.modal-head h3{min-width:0}
+.wallet-funding-modal>.modal-body{overflow:auto;min-height:0;overscroll-behavior:contain;gap:20px}
+.wallet-funding-modal>.modal-foot{gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.wallet-funding-modal .btn,.wallet-funding-modal .icon-btn{min-height:44px}
+.wallet-funding-modal .btn{white-space:normal;line-height:20px}
+.wallet-funding-modal .btn:focus-visible,.wallet-funding-modal .input:focus-visible,.wallet-funding-modal .select:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.wf-demo-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.wf-demo-toolbar>p{margin:0;max-width:510px;color:var(--color-text-muted);font-size:12px;line-height:20px}
+.wf-demo-toolbar>.btn{flex:none}
+.wf-steps{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(var(--wf-steps,4),minmax(0,1fr));gap:12px}
+.wf-steps>li{display:flex;align-items:center;gap:8px;color:var(--color-text-muted);font-size:12px;line-height:18px;min-width:0}
+.wf-steps>li>span:first-child{height:28px;width:28px;border:1px solid var(--color-divider);border-radius:50%;display:grid;place-items:center;flex:none}
+.wf-steps>li[aria-current=step]{color:var(--accent);font-weight:600}
+.wf-steps>li[aria-current=step]>span:first-child{color:#fff;background:var(--accent);border-color:var(--accent)}
+.wf-steps>li.wf-done>span:first-child{background:var(--success-soft);color:var(--success);border-color:var(--success)}
+.wf-form{display:grid;gap:18px;min-width:0}
+.wf-form .field{margin:0;min-width:0}
+.wf-form .input,.wf-form .select{width:100%;min-width:0;min-height:48px}
+.wf-form .field>small{font-size:12px;line-height:20px;color:var(--color-text-muted);margin-top:6px;overflow-wrap:anywhere}
+.wf-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.wf-amount-row{display:flex;gap:10px;align-items:flex-end}
+.wf-amount-row>.field{flex:1;min-width:0}
+.wf-amount-row>.btn{min-height:48px;flex:none}
+.wf-fee-box{display:grid;gap:12px;border:1px solid var(--color-divider);border-radius:12px;padding:18px;background:var(--color-surface-2)}
+.wf-fee-line{display:flex;align-items:baseline;justify-content:space-between;gap:16px;font-size:14px;line-height:22px;min-width:0}
+.wf-fee-line>span{color:var(--color-text-muted)}
+.wf-fee-line>strong{text-align:right;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;min-width:0}
+.wf-fee-line.wf-fee-total{padding-top:12px;border-top:1px solid var(--color-divider)}
+.wf-fee-line.wf-fee-total>strong{font-size:20px;line-height:28px}
+.wf-warning{padding:14px 16px;border:1px solid var(--warning);border-radius:10px;background:var(--warning-soft);color:var(--warning);font-size:13px;line-height:21px;margin:0}
+.wf-error{padding:12px 14px;border:1px solid var(--danger);border-radius:10px;color:var(--danger);background:var(--color-surface-2);font-size:13px;line-height:21px;margin:0}
+.wf-review{display:grid;grid-template-columns:140px minmax(0,1fr);gap:14px 18px;margin:0}
+.wf-review>dt{color:var(--color-text-muted);font-size:13px;line-height:22px}
+.wf-review>dd{margin:0;min-width:0;overflow-wrap:anywhere;font-size:14px;line-height:22px}
+.wf-receive{display:grid;grid-template-columns:180px minmax(0,1fr);gap:22px;align-items:start;min-width:0}
+.wf-qr{padding:12px;width:180px;min-height:180px;border:1px solid var(--color-divider);border-radius:12px;background:#fff;display:grid;place-items:center;gap:8px}
+.wf-qr canvas,.wf-qr img{max-width:154px!important;max-height:154px!important;width:154px!important;height:154px!important;image-rendering:pixelated}
+.wf-qr>span{font-size:11px;line-height:16px;letter-spacing:.05em;color:#15294b;font-weight:700}
+.wf-receive-info{min-width:0;display:grid;gap:14px}
+.wf-address-row{display:flex;gap:8px;align-items:flex-start;min-width:0}
+.wf-address-row>code{flex:1;min-width:0;overflow-wrap:anywhere;padding:12px;border:1px solid var(--color-divider);border-radius:10px;font-size:12px;line-height:20px;background:var(--color-surface-2);user-select:all}
+.wf-address-row>.btn{flex:none}
+.wf-status-head{display:flex;align-items:flex-start;gap:14px}
+.wf-status-icon{display:grid;place-items:center;width:46px;height:46px;border-radius:50%;font-size:24px;font-weight:700;flex:none;background:var(--accent-soft);color:var(--accent)}
+.wf-status-head[data-status=completed]>.wf-status-icon{background:var(--success-soft);color:var(--success)}
+.wf-status-head[data-status=failed]>.wf-status-icon{background:var(--warning-soft);color:var(--warning)}
+.wf-status-head h4{font-size:19px;line-height:28px;margin:0}
+.wf-status-head p{margin:6px 0 0;font-size:13px;line-height:21px;color:var(--color-text-muted)}
+.wf-simulate{border:1px dashed var(--color-divider);border-radius:12px;padding:16px;display:grid;gap:12px}
+.wf-simulate h4,.wf-simulate p{margin:0;font-size:13px;line-height:21px}
+.wf-simulate p{color:var(--color-text-muted)}
+.wf-simulate>.btn-row{display:flex;gap:8px;flex-wrap:wrap}
+.wf-otp{font-size:24px!important;letter-spacing:.4em;text-align:center;font-variant-numeric:tabular-nums}
+.wf-network-confirm{display:flex;align-items:flex-start;gap:10px;font-size:13px;line-height:22px}
+.wf-network-confirm>input{width:20px;height:20px;flex:none;margin:1px 0 0;accent-color:var(--accent)}
+.wf-copy-fallback{display:grid;gap:8px;min-width:0}
+.wf-copy-fallback>label{font-size:12px;line-height:20px;color:var(--color-text-muted)}
+.wf-copy-fallback>textarea{width:100%;min-height:80px;resize:vertical;font-size:13px;line-height:20px}
+.wallet-funding-recovery{margin-top:20px;padding-top:20px;border-top:1px solid var(--color-divider)}
+.wallet-funding-recovery>h3{font-size:14px;line-height:22px;margin:0 0 12px}
+.wf-pending-item{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--color-divider);padding:12px 14px;border-radius:10px;margin-top:8px;min-width:0}
+.wf-pending-item>div{min-width:0;display:grid;gap:4px;font-size:13px;line-height:20px}
+.wf-pending-item small{color:var(--color-text-muted);font-size:11px;overflow-wrap:anywhere}
+.wf-pending-item>.btn{flex:none;min-height:44px}
+.wallet-actions>.wallet-deposit-btn{background:var(--accent);border-color:var(--accent);color:#fff}
+.wallet-actions>.wallet-withdraw-btn{background:var(--color-surface);color:var(--accent);border-color:var(--accent)}
+.wallet-funding-toolbar{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:20px 24px}
+.wallet-funding-toolbar>div:first-child{min-width:0;max-width:630px}
+.wallet-funding-toolbar h3{font-size:17px;line-height:25px;margin:0}
+.wallet-funding-toolbar p{font-size:13px;line-height:21px;color:var(--color-text-muted);margin:6px 0 0}
+.wallet-funding-toolbar>.wallet-actions{flex:none}
+.wallet-funding-toolbar:has(>.wallet-funding-recovery){flex-wrap:wrap}
+.wallet-funding-toolbar>.wallet-funding-recovery{flex-basis:100%;margin-top:0}
+.wallet-workbench-page[data-wallet-workbench-view=activity]>.wallet-funding-toolbar{display:none}
+@media(max-width:599px){.wallet-funding-modal{width:100%;max-width:calc(100vw - 24px);max-height:calc(100dvh - 24px)}.wallet-funding-modal>.modal-head,.wallet-funding-modal>.modal-body,.wallet-funding-modal>.modal-foot{padding:16px}.wallet-funding-modal>.modal-body{gap:18px}.wf-demo-toolbar>.btn{margin-left:auto}.wf-steps{gap:8px}.wf-steps>li{flex-direction:column;gap:6px;text-align:center;align-items:center;font-size:11px;line-height:17px}.wf-grid{grid-template-columns:minmax(0,1fr);gap:16px}.wf-fee-box{padding:14px}.wf-fee-line{gap:10px;font-size:13px}.wf-fee-line.wf-fee-total>strong{font-size:18px}.wf-review{grid-template-columns:minmax(0,1fr);gap:4px}.wf-review>dd{margin-bottom:10px}.wf-receive{grid-template-columns:minmax(0,1fr);gap:18px}.wf-qr{margin:0 auto}.wf-address-row{flex-wrap:wrap}.wf-address-row>code{flex-basis:100%}.wf-address-row>.btn{margin-left:auto}.wf-simulate>.btn-row>.btn{flex:1 1 130px}.wallet-funding-modal>.modal-foot>.btn{flex:1;min-width:0}.wf-pending-item{align-items:flex-start;flex-wrap:wrap}.wf-pending-item>.btn{margin-left:auto}.wf-amount-row>.btn{padding:10px 12px}}
+@media(max-width:900px){.wallet-funding-toolbar{flex-wrap:wrap}.wallet-funding-toolbar>.wallet-actions{width:100%}}
+@media(max-width:599px){.wallet-funding-toolbar{padding:16px;gap:16px}.wallet-funding-toolbar>.wallet-actions>.btn{flex:1 1 100%}}

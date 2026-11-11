@@ -1,7 +1,12 @@
 .wallet-workbench-tabs{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 16px}
 .wallet-workbench-tabs>.btn{min-height:44px;white-space:nowrap}
 .wallet-workbench-tabs>.btn:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.wallet-workbench-tools{display:flex;align-items:center;gap:12px;margin-bottom:16px;min-width:0}
+.wallet-workbench-tools>.wallet-workbench-tabs{flex:1;margin:0;min-width:0}
+.wallet-shared-privacy{min-height:44px;flex:none}
 .wallet-workbench-page[data-wallet-workbench-view=activity]>.wallet-toolbar,.wallet-workbench-page[data-wallet-workbench-view=activity]>.wallet-selected,.wallet-workbench-page[data-wallet-workbench-view=activity]>.wallet-list-card{display:none}
+.wallet-workbench-page[data-wallet-workbench-view=activity]>.wallet-funding-toolbar,.wallet-workbench-page[data-wallet-workbench-view=activity]>.wallet-classification,.wallet-workbench-page[data-wallet-workbench-view=activity]>.amr-panel,.wallet-workbench-page[data-wallet-workbench-view=wallets]>.wallet-history{display:none}
+.wallet-workbench-page>.amr-panel{margin-bottom:0}
 .wallet-classification{min-width:0}
 .wallet-classification-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding:24px 24px 20px}
 .wallet-classification-head>div:first-child{min-width:0;max-width:680px}
@@ -30,3 +35,22 @@
 @media(max-width:1199px){.wallet-classification-head{flex-wrap:wrap}.wallet-overview-controls{margin-left:auto}.wallet-category-value>strong{font-size:24px;line-height:32px}}
 @media(max-width:700px){.wallet-category-grid{grid-template-columns:minmax(0,1fr)}.wallet-category-total{grid-column:auto}.wallet-category-value{min-height:36px}}
 @media(max-width:599px){.wallet-classification-head{padding:16px;gap:16px}.wallet-overview-controls{width:100%;margin:0;justify-content:space-between;gap:12px}.wallet-overview-controls>.field{flex:1;max-width:160px}.wallet-overview-controls>.field>.select{width:100%;min-width:0}.wallet-overview-controls>.btn{flex:none;padding-left:12px;padding-right:12px}.wallet-category-grid{padding:0 16px;gap:12px}.wallet-category{padding:16px}.wallet-category-value>strong{font-size:26px;line-height:34px}.wallet-reference-status{margin:16px 16px 0}.wallet-classification-note{margin:8px 16px 16px}.wallet-workbench-home-categories{padding:0 16px 16px}.wallet-workbench-tabs{margin-bottom:12px}.wallet-workbench-tabs>.btn{flex:1;justify-content:center}}
+@media(max-width:599px){
+ .wallet-workbench-tools{gap:8px;margin-bottom:12px}
+ .wallet-workbench-tools .wallet-workbench-tabs{gap:8px;flex-wrap:nowrap}
+ .wallet-workbench-tools .wallet-workbench-tabs>.btn{min-width:0;padding:10px 12px}
+ .wallet-shared-privacy{width:44px;padding:10px}
+ .wallet-shared-privacy>span{display:none}
+ .wallet-toolbar>.wallet-network-field{display:none}
+ .wallet-list-card .tbl-wrap{overflow:visible}
+ .wallet-list-card .tbl-wrap>table.wallet-list{display:block;min-width:0;width:100%}
+ .wallet-list thead{display:none}
+ .wallet-list tbody{display:block;padding:0 16px 16px}
+ .wallet-list tbody tr{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;padding:16px 0;border-bottom:1px solid var(--color-divider)}
+ .wallet-list tbody tr:last-child{border-bottom:0;padding-bottom:0}
+ .wallet-list tbody td{display:block;border:0!important;padding:0!important;min-width:0;text-align:left!important;white-space:normal!important;overflow-wrap:anywhere}
+ .wallet-list tbody td::before{content:attr(data-wallet-label);display:block;font-size:12px;color:var(--color-text-muted);font-weight:400;margin-bottom:5px}
+ .wallet-list tbody td:first-child,.wallet-list tbody td:last-child{grid-column:1/-1}
+ .wallet-list tbody td:first-child::before,.wallet-list tbody td:last-child::before{display:none}
+ .wallet-list tbody td:last-child .btn{width:100%;min-height:44px}
+}
