@@ -279,7 +279,7 @@ input[type='radio'], input[type='checkbox'] { accent-color: var(--accent); width
 }
 .kpi-ccy { font-size: .55em; font-weight: 500; color: var(--color-text-muted); margin-right: 5px; letter-spacing: 0; }
 .kpi-value { white-space: nowrap; }
-.flag { display: inline-grid; vertical-align: middle; margin-right: 6px; }
+.flag { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; margin-right: 6px; padding: 2px 0 0; line-height: 1; text-align: center; text-indent: 0; letter-spacing: 0; white-space: nowrap; font-family: Arial, Helvetica, sans-serif; }
 td .flag { width: 20px; height: 20px; font-size: 9px; }
 
 /* ===== v3: customer portal components ===== */

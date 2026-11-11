@@ -124,3 +124,15 @@ Dashboard and revenue views support 7, 30 and 90 days, this month, previous mont
 Uploaded PDF and image documents are classified from their page contents rather than trusting filenames. Recognition is browser-local, auto-queued after upload and isolated per document and page. Candidates retain document/page provenance and still require human review before application; identity ownership roles are never inferred automatically. Handwritten or low-confidence content remains explicitly reviewable. Supporting artwork is not treated as proof of business premises. Private recognition samples, extracted values and reference images are not distributed.
 
 Focused checks include `verify-account-switcher.mjs`, `verify-date-periods.mjs`, `verify-theme-logo-legend.mjs` and the document-recognition regressions, alongside the existing wallet, funding, payment, FX and scope checks.
+
+## 2026-11-11 loading and chart polish
+
+The shared CMS startup view uses a thin 22px/1px spinner and fixed-width animated dots, with a static accessible status. It respects saved dark mode, the requested UI language and reduced motion. Chart/QR libraries load after the visible placeholder; completed views remove it immediately. Cached account views do not acquire an artificial loading delay. All line charts use straight segments (`tension: 0`), and currency badges center their Latin labels at the existing sizes.
+
+The Dogpay reference remains a feature reference, not a complete product clone. The demo currently supports named multi-wallet creation, TRC20/ERC20 separation, simulated USDT deposits/withdrawals, same-network internal wallet transfers and local activity records. A crypto withdrawal address book, executed fiat/USDT conversion, crypto batch payouts, card-wallet funding and collection API activation are not implemented. Items visible only as historical records or tabs in the reference do not establish a verified end-to-end flow.
+
+## Account-specific Telegram and WhatsApp notifications
+
+`notifications/` contains a server-side, operator-local sender connector and a Traditional Chinese setup guide (`notifications/SETUP.zh-Hant.md`). It routes by private per-account bindings, requires recipient consent and explicit send, and supports Telegram messages and approved WhatsApp templates. Tokens stay in private environment files outside this repository; examples have both channels disabled. Persistent per-channel event IDs prevent duplicate sends, and uncertain outcomes require reconciliation.
+
+No provider account, bot, real recipient or credential is configured in this release. No message has been sent or verified received. GitHub Pages runs the static demo only: there is no automatic business-event dispatch, public notification endpoint, self-service account binding or delivery webhook. The guide separates the currently usable local connector from the future authenticated private-chat binding flow and public announcement channels.

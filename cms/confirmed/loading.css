@@ -1,0 +1,13 @@
+/* Visible before the application and chart libraries finish loading. */
+.loading.azure-loading{min-height:100dvh;display:flex;align-items:center;justify-content:center;flex-direction:row;gap:12px;padding:24px;box-sizing:border-box;color:var(--color-text,#101f3c);background:var(--color-bg,#f4f7fc)}
+.azure-loading-ring{display:block;flex:none;width:22px;height:22px;box-sizing:border-box;border:1px solid var(--color-divider,#ccd6e4);border-top-color:var(--accent,#004beb);border-radius:50%;animation:azure-loading-spin .85s linear infinite}
+.azure-loading-copy{margin:0;font-size:16px;line-height:24px;font-weight:400;white-space:nowrap}
+.azure-loading-label{display:none}
+html[lang="zh-Hant"] .azure-loading-label[lang="zh-Hant"],html[lang="zh-Hans"] .azure-loading-label[lang="zh-Hans"],html[lang="en"] .azure-loading-label[lang="en"]{display:inline}
+.azure-loading-dots{display:inline-flex;width:1.2em;justify-content:space-between;vertical-align:baseline}
+.azure-loading-dots>span{opacity:.25;animation:azure-loading-dot 1.2s ease-in-out infinite}
+.azure-loading-dots>span:nth-child(2){animation-delay:.16s}
+.azure-loading-dots>span:nth-child(3){animation-delay:.32s}
+@keyframes azure-loading-spin{to{transform:rotate(360deg)}}
+@keyframes azure-loading-dot{0%,70%,100%{opacity:.25}35%{opacity:1}}
+@media(prefers-reduced-motion:reduce){.azure-loading-ring,.azure-loading-dots>span{animation:none}.azure-loading-dots>span{opacity:1}}

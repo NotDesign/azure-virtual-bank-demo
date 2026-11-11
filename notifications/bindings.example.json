@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "accounts": {
+    "stephen@ourbank.example": {
+      "label": "Azure Demo 全權管理者",
+      "events": ["test", "deposit", "withdrawal", "supplement", "approval"],
+      "telegram": {"enabled": false, "consent": false, "chatId": "", "consentedAt": ""},
+      "whatsapp": {"enabled": false, "consent": false, "phone": "", "consentedAt": ""}
+    }
+  }
+}

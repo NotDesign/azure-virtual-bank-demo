@@ -1,0 +1,7 @@
+.private/
+.env
+.env.*
+!.env.example
+*.private.json
+*.local.env
+delivery-state/

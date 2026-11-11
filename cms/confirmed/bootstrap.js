@@ -10,7 +10,7 @@
     const D = Chart.defaults;
     D.font.family = getComputedStyle(document.body).fontFamily; D.font.size = 12;
     D.elements.bar.borderRadius = 6; D.elements.bar.borderSkipped = false;
-    D.elements.line.tension = 0.35; D.elements.point.radius = 0; D.elements.point.hoverRadius = 5;
+    D.elements.line.tension = 0; D.elements.point.radius = 0; D.elements.point.hoverRadius = 5;
     D.plugins.legend.labels.usePointStyle = true; D.plugins.legend.labels.pointStyle = 'circle'; D.plugins.legend.labels.boxWidth = 8;
     Object.assign(D.plugins.tooltip, { backgroundColor: 'rgba(29,29,31,.92)', padding: 10, cornerRadius: 10, displayColors: false, titleFont: { weight: '600' }, caretSize: 0 });
     D.interaction = { mode: 'index', intersect: false };

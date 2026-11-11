@@ -175,7 +175,7 @@ PAGES['cust:fx'] = () => {
   const pts = Array.from({ length: days * 4 + 1 }, (_, i) => mid * (1 + (rnd() - 0.5) * 0.004 + Math.sin(i / 5) * 0.0015)); pts[pts.length - 1] = mid;
   AFTER.push(() => {
     const acc = cssVar('--accent'), txt = cssVar('--color-text-muted'), grid = cssVar('--color-divider');
-    chart('fxc', { type: 'line', data: { labels: pts.map((_, i) => i), datasets: [{ data: pts, borderColor: acc, backgroundColor: acc + '22', fill: true, pointRadius: 0, tension: .3, borderWidth: 2 }] },
+    chart('fxc', { type: 'line', data: { labels: pts.map((_, i) => i), datasets: [{ data: pts, borderColor: acc, backgroundColor: acc + '22', fill: true, pointRadius: 0, tension: 0, borderWidth: 2 }] },
       options: { maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { title: () => '', label: (c) => '汇率 ' + c.raw.toFixed(6) } } }, scales: { x: { display: false }, y: { grid: { color: grid }, ticks: { color: txt, callback: (v) => v.toFixed(4) } } } } });
   });
   const ccys = fxCcys(), avail = bal()[f.sell] ? bal()[f.sell].a : 0;
