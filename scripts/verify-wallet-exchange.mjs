@@ -45,7 +45,7 @@ try{
  check((await f.locator('[data-wx-fee]').innerText()).includes('0.16')&&(await f.locator('[data-wx-receive]').innerText()).includes('9.979487'),'HKD quote uses fixed 7.8 Demo rate, fee rounding and 6-decimal target rather than market rates');
  check(await snapshot(f)===before,'Obtaining a quote does not debit either wallet');
  await close(f);check(await snapshot(f)===before,'Cancelling a quote does not debit or create a completed record');
- await waitInFrame(f,()=>document.activeElement?.classList.contains('wallet-exchange-btn'));check(await f.locator('.wallet-exchange-btn').evaluate(e=>e===document.activeElement),'Closing restores focus to the wallet action');
+ await p.clock.runFor(32);await waitInFrame(f,()=>document.activeElement?.classList.contains('wallet-exchange-btn'));check(await f.locator('.wallet-exchange-btn').evaluate(e=>e===document.activeElement),'Closing restores focus to the wallet action');
  await f.locator('.wallet-exchange-btn').click();await sample(f);check(Number(await f.locator('#wallet-exchange-amount').inputValue())>0,'Demo sample fills an amount for the selected source');
  await f.locator('#wallet-exchange-from').selectOption(ids.HKD);await f.locator('#wallet-exchange-to').selectOption(ids.tron);await f.locator('#wallet-exchange-amount').fill('78.00');await next(f);
  await p.clock.fastForward(31000);
