@@ -1,5 +1,5 @@
-import {parseBR,parseDate} from './parser.mjs?v=20260929-uploads';
-import {ocrRows,cropCanvas,prepareSmallScan,findCompactLayout} from './layout.mjs';
+import {parseBR,parseDate} from './parser.mjs?v=20261111-documents';
+import {ocrRows,cropCanvas,prepareSmallScan,findCompactLayout} from './layout.mjs?v=20261111-documents';
 
 // Printed labels locate the value column. Never identify a document by filename,
 // company name, certificate number, or a cached customer-specific answer.
@@ -16,9 +16,12 @@ export async function recoverLabelledBR({worker,canvas,page,signal,run,onProgres
   if(statusIndex<0)return null;
   const x=layout.status.words[statusIndex].bbox.x0,h=layout.company.height;
   const label=(pattern)=>rows.find(r=>pattern.test(r.words.filter(w=>w.bbox.x1<x-10).map(w=>w.text).join(' ')));
-  const name=label(/^Name of Business\/?$/i),branch=label(/^Branch Name$/i),address=label(/^Address$/i),nature=label(/^Nature of Business$/i),status=label(/\bStatus$/i);
-  const dates=rows.find(r=>/Date of Commencement.*Date of Expiry.*Certificate No/i.test(r.words.map(w=>w.text).join(' ')));
-  if(!name||!branch||!address||!nature||!status||!dates||!(name.cy<branch.cy&&branch.cy<address.cy&&address.cy<nature.cy&&nature.cy<status.cy&&status.cy<dates.cy))return null;
+  const name=label(/^Name of Busine(?:ss)?[/:.]?$/i),branch=label(/^Branch Name$/i),address=label(/^Address$/i),nature=label(/^Nature of Business$/i),status=label(/\bStatus$/i);
+  const dateIndex=rows.findIndex(r=>/Date of Commencement/i.test(r.words.map(w=>w.text).join(' ')));
+  const dateHeaders=dateIndex<0?'':rows.slice(Math.max(0,dateIndex-1),dateIndex+2).map(r=>r.words.map(w=>w.text).join(' ')).join(' ');
+  const dates=dateIndex>=0&&/\bExpiry\b/i.test(dateHeaders)&&/Certificate No/i.test(dateHeaders)?rows[dateIndex]:null;
+  if(!branch||!nature||!status||!dates||!((name?.cy??layout.company.row.cy)<branch.cy&&branch.cy<nature.cy&&nature.cy<status.cy&&status.cy<dates.cy))return null;
+  if(address&&!(branch.cy<address.cy&&address.cy<nature.cy))return null;
   // Dashed vertical borders otherwise become repeated I / 1 OCR characters.
   const narrow=rows.flatMap(r=>r.words).filter(w=>w.bbox.x0>x+h*15&&w.bbox.x1-w.bbox.x0<h*.4);
   const border=narrow.find(w=>narrow.filter(v=>Math.abs(v.bbox.x0-w.bbox.x0)<h*.3).length>=8);
@@ -29,7 +32,7 @@ export async function recoverLabelledBR({worker,canvas,page,signal,run,onProgres
   const company=companyWords.map(w=>w.text).join(' ');
   const boxes={
    businessNameEn:{x:x-h*.5,y:Math.min(...companyWords.map(w=>w.bbox.y0))-h*.5,width:right-x,height:h*2},
-   businessAddressEn:{x:x-h*.5,y:labelTop(address),width:right-x,height:labelTop(nature)-labelTop(address)},
+   businessAddressEn:{x:x-h*.5,y:address?labelTop(address):branch.cy+h*1.6,width:right-x,height:labelTop(nature)-(address?labelTop(address):branch.cy+h*1.6)},
    natureOfBusiness:{x:x-h*.5,y:labelTop(nature),width:right-x,height:Math.min(...layout.status.words.slice(statusIndex,statusIndex+2).map(w=>w.bbox.y0))-labelTop(nature)-h*.5},
    legalStatus:{x:x-h*.5,y:Math.min(...layout.status.words.slice(statusIndex,statusIndex+2).map(w=>w.bbox.y0))-h*.4,width:right-x,height:h*2},
   };
@@ -38,7 +41,8 @@ export async function recoverLabelledBR({worker,canvas,page,signal,run,onProgres
    check();const piece=cropCanvas(prepared,box,1.5);
    try{const {data:found}=await run(worker.recognize(piece,{}, {text:true,blocks:true}));
     const lines=ocrRows(found).map(r=>r.words.map(w=>w.text).join(' ').trim()).filter(Boolean);
-    read[key]={value:lines.join(' '),confidence:found.confidence};sources.push(found.text.trim());
+    const value=key==='businessNameEn'?(lines.find(line=>/\b(?:LIMITED|LTD\.?|CORPORATION)$/i.test(line))||lines.join(' ')):lines.join(' ');
+    read[key]={value,confidence:found.confidence};sources.push(found.text.trim());
    }finally{piece.width=1;}
   }
   // Require the separately cropped name to agree with the location pass.

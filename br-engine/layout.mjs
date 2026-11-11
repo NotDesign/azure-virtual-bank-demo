@@ -1,9 +1,13 @@
 // Layout helpers for compact, older Hong Kong BR scans. No customer values/templates stored.
 export function ocrRows(data) {
- const words=(data.blocks||[]).flatMap(b=>(b.paragraphs||[]).flatMap(p=>(p.lines||[]).flatMap(l=>l.words||[]))).filter(w=>w.text?.trim());
- const rows=[];
+ const all=(data.blocks||[]).flatMap(b=>(b.paragraphs||[]).flatMap(p=>(p.lines||[]).flatMap(l=>l.words||[]))).filter(w=>w.text?.trim()&&w.bbox&&[w.bbox.x0,w.bbox.x1,w.bbox.y0,w.bbox.y1].every(Number.isFinite)&&w.bbox.x1>w.bbox.x0&&w.bbox.y1>w.bbox.y0);
+ if(!all.length)return [];
+ const heights=all.map(w=>w.bbox.y1-w.bbox.y0).sort((a,b)=>a-b),typical=heights[Math.floor(heights.length/2)];
+ // A dashed page border can be OCR'd as one very tall word. It must not make
+ // the row tolerance large enough to merge an entire page into one line.
+ const words=all.filter(w=>w.bbox.y1-w.bbox.y0<=typical*6),rows=[];
  for(const word of words.sort((a,b)=>a.bbox.y0-b.bbox.y0)){
-  const box=word.bbox,h=box.y1-box.y0,cy=(box.y0+box.y1)/2;
+  const box=word.bbox,h=Math.min(box.y1-box.y0,typical*2),cy=(box.y0+box.y1)/2;
   let row=rows.find(r=>Math.abs(r.cy-cy)<Math.max(r.height,h)*.55);
   if(!row){row={cy,height:h,words:[]};rows.push(row);}row.words.push(word);row.height=Math.max(row.height,h);
  }

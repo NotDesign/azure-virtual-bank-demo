@@ -10,12 +10,17 @@
     const listeners=new Set(),leases=new Map();
     let rates={},fetchedAt=null,attemptedAt=null,nextRefreshAt=null,error=null;
     let timer=null,inflight=null,controller=null,failures=0,stopped=false,cooldownUntil=null;
-    const now=()=>Date.now();
+    const now=()=>owner.Date.now();
     const visible=()=>!owner.document.hidden;
     function hasView() {
       for(const [win,active]of leases) {
         try { if(win.closed || (win!==owner && !win.frameElement?.isConnected)){leases.delete(win);continue;} } catch { leases.delete(win);continue; }
-        if(active)return true;
+        if(active){
+          let current=win,shown=true;
+          try{while(current!==owner){const element=current.frameElement;if(!element?.isConnected||element.inert||element.closest('[hidden]')){shown=false;break;}current=current.parent;}}
+          catch{shown=false;}
+          if(shown)return true;
+        }
       }
       return false;
     }

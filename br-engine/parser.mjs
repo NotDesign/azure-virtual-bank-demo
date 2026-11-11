@@ -88,7 +88,7 @@ export function parseBR(text,{method='ocr',page=1,today=new Date().toISOString()
  for(let i=0;i<lines.length;i++) {
   if(!labels.find(x=>x[0]==='start')[1].test(lines[i]))continue;
   const header=lines.slice(i,i+4).join(' ');
-  if(!labels.find(x=>x[0]==='expiry')[1].test(header))continue;
+  if(!labels.find(x=>x[0]==='expiry')[1].test(header)&&!/\bExpiry\b/i.test(header))continue;
   for(const line of lines.slice(i,i+7)){
    const matches=(line.match(dateRE)||[]).map(parseDate).filter(Boolean);
    if(matches.length===2){set('startDate',matches[0],line);set('expiryDate',matches[1],line);break;}

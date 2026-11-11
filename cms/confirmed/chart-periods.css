@@ -1,0 +1,9 @@
+.chart-period-toolbar{padding:16px 20px;margin:0 0 20px;display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,330px);gap:12px 20px;align-items:center}
+.chart-period-options{display:flex;align-items:center;flex-wrap:wrap;gap:10px 16px;min-width:0}
+.chart-period-options>strong{font-size:14px;white-space:nowrap}
+.chart-period-options .btn-row{gap:6px}
+.chart-period-options .btn{min-height:36px}
+.chart-period-range{min-width:0}
+.chart-period-toolbar>p{grid-column:1/-1;margin:0;line-height:20px;font-size:12px}
+@media(max-width:1099px){.chart-period-toolbar{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:599px){.chart-period-toolbar{padding:16px;gap:12px}.chart-period-options .btn-row{width:100%}.chart-period-options .btn{flex:1;white-space:nowrap;padding:6px 9px}.chart-period-options>strong{font-size:13px}}

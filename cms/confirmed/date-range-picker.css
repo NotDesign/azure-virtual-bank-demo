@@ -1,0 +1,28 @@
+.az-range-trigger{width:100%;justify-content:space-between;gap:10px;min-height:44px;font-variant-numeric:tabular-nums;text-align:left}
+.az-range-trigger>span{white-space:nowrap;font-size:13px;min-width:0}
+.az-range-trigger>svg{width:20px;height:20px;flex:none}
+.az-date-range-field{min-width:250px}
+.az-unified-date-field{min-width:0}
+#review-app-filters .az-unified-date-field,.wa-filters .az-unified-date-field{grid-column:span 2}
+.az-range-dialog{width:430px;max-width:calc(100vw - 24px);max-height:calc(100dvh - 24px);padding:0;border:1px solid var(--color-divider);border-radius:16px;color:var(--color-text);background:var(--color-surface);box-shadow:var(--shadow-lg);overflow:auto}
+.az-range-dialog::backdrop{background:#101f3c66;backdrop-filter:blur(4px)}
+.az-range-dialog header,.az-range-dialog footer{display:flex;align-items:center;gap:12px;padding:16px 20px}
+.az-range-dialog header{justify-content:space-between;border-bottom:1px solid var(--color-divider)}
+.az-range-dialog h3{font-size:18px;line-height:26px;margin:0}
+.az-range-dialog footer{justify-content:flex-end;border-top:1px solid var(--color-divider);position:sticky;bottom:0;background:var(--color-surface)}
+.az-range-body{padding:16px 20px}
+.az-range-presets{display:flex;flex-wrap:wrap;gap:8px}
+.az-range-presets .btn{min-height:36px}
+.az-range-selection{font-size:14px;line-height:22px;margin:16px 0;font-variant-numeric:tabular-nums}
+.az-range-hint,.az-range-guidance{font-size:12px;line-height:20px;color:var(--color-text-muted);margin:12px 0 0}
+.az-calendar-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.az-calendar-nav .btn,.az-calendar-close{width:40px;height:40px;padding:0;font-size:22px;flex:none}
+.az-calendar-heading{font-size:15px}
+.az-calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.az-calendar-weekday{font-size:12px;text-align:center;color:var(--color-text-muted);padding:4px 0}
+.az-calendar-day{min-width:0;min-height:40px;border:1px solid transparent;background:transparent;border-radius:8px;color:var(--color-text);font:inherit;font-size:13px;padding:4px}
+.az-calendar-day:hover{background:var(--accent-soft);border-color:var(--accent)}
+.az-calendar-day.in-range{background:var(--accent-soft)}
+.az-calendar-day.is-selected{background:var(--accent);color:#fff}
+.az-calendar-day:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media(max-width:599px){#review-app-filters .az-unified-date-field,.wa-filters .az-unified-date-field{grid-column:1/-1}.az-date-range-field{min-width:0;flex:1 1 100%}.az-range-trigger>span{font-size:12px}.az-range-dialog header,.az-range-dialog footer{padding:12px 16px}.az-range-body{padding:12px 16px}.az-range-dialog footer .btn{flex:1}.az-calendar-grid{gap:2px}.az-calendar-day{min-height:38px}}

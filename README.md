@@ -13,7 +13,7 @@ Traditional Chinese first, with Simplified Chinese and English. The login preser
 
 Password: `AzureDemo!2026` · Initial OTP: `381726`. Resending changes the shown demo code. The login demo panel can fill accounts and current codes.
 
-CMS scope is fixed by the authenticated account. There is no role switch. Public customer applications and agent registration are separate links; registration level is derived from the invitation code.
+CMS scope is fixed by the authenticated account. The remembered-account picker switches only between independently verified accounts and never grants another role. Public customer applications and agent registration are separate links; registration level is derived from the invitation code.
 
 ## Run and build
 
@@ -109,3 +109,18 @@ Transaction history distinguishes requested principal, Demo fee, reserved funds 
 USDT, TRC20, ERC20 and funding keywords now find the permitted wallet entry in global and sidebar search. Wallet actions precede detailed valuations, and the Transactions tab presents its own content without the unrelated market and asset cards. Mobile wallet and transaction cards keep their action buttons in view. A shared eye control toggles amount privacy from either tab. First-use and filtered-empty history states offer distinct next actions.
 
 Run `scripts/verify-wallet-funding.mjs`, `scripts/verify-wallet-funding-ui.mjs` and `scripts/verify-wallet-usability.mjs`, plus the wallet/activity/workbench, payment, FX, reference-rate and role-scope regressions. No personal reference video, private document or extracted reference frame is included in the release.
+
+
+## 2026-11-11 workspace, date controls and document recognition
+
+The account panel can remember accounts only after successful password and OTP verification. Device storage contains canonical account metadata, not passwords, OTPs or verified-session grants. Valid in-memory sessions can be switched directly, with an independent attached workspace for each account. Reloading, signing out or reaching the 15-minute idle limit requires verification again. Adding an account can be cancelled without losing the original workspace; forgetting an account removes its remembered entry without signing out the current account. Account-message handling accepts only the active main frame, its same origin and a valid current session. Exchange amounts and notes survive switching, including edits made immediately before opening the account picker. Keyboard and text-input activity keep the active session alive; inactive accounts cannot extend another session.
+
+Dark mode reuses the original logo artwork and preserves its blue orb while making the wordmark and badge readable. Desktop, mobile and public-page variants use the same proportions. Revenue legends place each complete product label and amount on a single row rather than splitting labels into two narrow columns.
+
+Paired date filters now use a single range calendar, including application-created dates, wallet activity, bank ledger, FX history, customer transactions and statement periods. Start and end dates are selected in one calendar; presets, cancellation, clearing, read-only handling and inclusive bounds preserve the existing scoped filter behavior. Single-date fields such as birth dates remain independent.
+
+Dashboard and revenue views support 7, 30 and 90 days, this month, previous month and a custom range of up to 366 days. Financial metrics, daily series, income composition and product rows use the same selected transaction window and the original calculation formulas. The toolbar explicitly shows the supplied Demo cutoff rather than manufacturing current-day or historical transactions. Customer FX retains its existing 1/7/15/30-day illustrative trend controls. Background reference-rate polling skips cached accounts whose frames are hidden or inert.
+
+Uploaded PDF and image documents are classified from their page contents rather than trusting filenames. Recognition is browser-local, auto-queued after upload and isolated per document and page. Candidates retain document/page provenance and still require human review before application; identity ownership roles are never inferred automatically. Handwritten or low-confidence content remains explicitly reviewable. Supporting artwork is not treated as proof of business premises. Private recognition samples, extracted values and reference images are not distributed.
+
+Focused checks include `verify-account-switcher.mjs`, `verify-date-periods.mjs`, `verify-theme-logo-legend.mjs` and the document-recognition regressions, alongside the existing wallet, funding, payment, FX and scope checks.

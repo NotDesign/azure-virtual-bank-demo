@@ -1,0 +1,10 @@
+/* Reuse the exact original artwork; only its right-hand wordmark is themed. */
+.azure-theme-logo{position:relative;vertical-align:middle;line-height:0;aspect-ratio:3/1}
+.azure-theme-logo>img{display:block;width:100%!important;height:100%!important;object-fit:contain;background:transparent;border:0;border-radius:0}
+.azure-theme-logo>.azure-logo-dark-overlay{display:none;position:absolute;inset:0;pointer-events:none;clip-path:inset(0 0 0 30.6%);filter:invert(1) hue-rotate(180deg)}
+.sidebar .brand>.azure-theme-logo{display:block;width:210px;height:70px;flex:none}
+.public-top>.azure-theme-logo,.locked>.azure-theme-logo{display:block}
+.locked>.azure-theme-logo{width:210px;height:70px}
+[data-theme=dark] .azure-theme-logo>.azure-logo-dark-overlay{display:block}
+[data-theme=dark] .azure-theme-logo.mobile-logo,[data-theme=dark] .azure-theme-logo.public-logo{background:transparent;border-radius:0}
+@media(max-width:1199px){.sidebar .brand>.azure-theme-logo{width:192px;height:64px}}

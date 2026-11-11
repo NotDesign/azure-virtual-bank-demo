@@ -10,14 +10,83 @@ const localizeChinese=s=>locale==='zh-Hans'?toSimplified(s):s;
 const bilingual=(a,b)=>locale==='en'?b:localizeChinese(a);
 const state={page:'login',email:'',password:'',newPassword:'',confirmPassword:'',demoPassword:'AzureDemo!2026',method:'email',digits:Array(6).fill(''),code:'381726',codeVersion:0,expires:0,resend:0,attempts:0,credentialAttempts:0,lockUntil:0,resetExpires:0,resetResend:0,verified:0,error:'',message:'',busy:false,lastActivity:Date.now()};
 let flowVersion=0,cmsInstance=null,cmsMode='',cmsLoading=0;
-state.account=null;
+state.account=null;state.remember=true;
 const roleLabels={cust:['客戶 eBanking','Customer eBanking'],l1:['一級代理','Level 1 Agent'],l2:['二級代理','Level 2 Agent'],hq:['全權管理者','Full Administrator']};
+const REMEMBER_KEY='azure.remembered-accounts.v1',SESSION_IDLE=900000,cmsSessions=new Map(),accountAuthFailures=new Map();
+let activeAccountEmail=null,returnAccountEmail=null,transientHost=null;
+function rememberedAccounts(){
+ try{const raw=JSON.parse(localStorage.getItem(REMEMBER_KEY)||'[]');if(!Array.isArray(raw))return[];return [...new Set(raw.slice(0,20).map(x=>typeof x?.email==='string'?x.email.toLowerCase():''))].map(findAccount).filter(Boolean).map(({email,name,organization,role})=>({email,name,organization,role}));}catch{return[];}
+}
+function rememberAccount(account,remember=true){
+ const current=rememberedAccounts().filter(x=>x.email!==account.email);if(remember){const {email,name,organization,role}=account;current.unshift({email,name,organization,role});}
+ try{localStorage.setItem(REMEMBER_KEY,JSON.stringify(current.slice(0,8)));}catch{/* Device storage can be disabled; verified memory sessions still work. */}
+}
+function authFailures(email=state.email){
+ const key=String(email||'').trim().toLowerCase();let value=accountAuthFailures.get(key);
+ if(!value||(value.lockUntil&&value.lockUntil<=Date.now())){value={credentialAttempts:0,otpAttempts:0,lockUntil:0};accountAuthFailures.set(key,value);}return value;
+}
+function syncAuthFailures(){const value=authFailures();state.credentialAttempts=value.credentialAttempts;state.attempts=value.otpAttempts;state.lockUntil=value.lockUntil;return value;}
+function sessionValid(entry){return !!entry&&Date.now()-entry.lastActivity<SESSION_IDLE;}
+function destroyAccount(email){const entry=cmsSessions.get(email);if(!entry)return;entry.instance?.destroy();entry.host?.remove();cmsSessions.delete(email);if(activeAccountEmail===email)activeAccountEmail=null;}
+function pauseIntegrated(){
+ cmsLoading++;for(const entry of cmsSessions.values()){entry.instance?.setActive(false);if(entry.host)entry.host.hidden=true;}
+ activeAccountEmail=null;if(cmsMode!=='cms')cmsInstance?.destroy();transientHost?.remove();transientHost=null;cmsInstance=null;cmsMode='';
+}
+function clearAccountSessions(){pauseIntegrated();for(const email of [...cmsSessions.keys()])destroyAccount(email);returnAccountEmail=null;}
+function verifiedAccount(){
+ const account=findAccount(state.account?.email);if(!account)return;
+ let entry=cmsSessions.get(account.email);if(entry&&!sessionValid(entry)){destroyAccount(account.email);entry=null;}
+ if(!entry){entry={account:{...account},lastActivity:Date.now(),host:null,instance:null};cmsSessions.set(account.email,entry);}else entry.lastActivity=Date.now();
+ rememberAccount(account,state.remember);return entry;
+}
+function accountState(){
+ const current=state.verified===2?findAccount(state.account?.email):null;
+ const rows=rememberedAccounts();if(current&&!rows.some(x=>x.email===current.email))rows.unshift({email:current.email,name:current.name,organization:current.organization,role:current.role});
+ const remembered=new Set(rememberedAccounts().map(x=>x.email));
+ return {currentEmail:current?.email||null,accounts:rows.map(a=>({...a,remembered:remembered.has(a.email),sessionActive:sessionValid(cmsSessions.get(a.email)),current:a.email===current?.email}))};
+}
+function beginAccountLogin(email=''){
+ returnAccountEmail=activeAccountEmail&&sessionValid(cmsSessions.get(activeAccountEmail))?activeAccountEmail:returnAccountEmail;
+ flowVersion++;state.verified=0;state.account=null;state.email=findAccount(email)?.email||'';state.password='';state.newPassword='';state.confirmPassword='';state.digits=Array(6).fill('');state.remember=true;syncAuthFailures();history.replaceState({},'',location.pathname+location.search);go(state.lockUntil>Date.now()?'locked':'login');
+}
+function activateAccount(email){
+ const account=findAccount(email),entry=account&&cmsSessions.get(account.email);
+ if(!account||!sessionValid(entry)){if(entry)destroyAccount(account.email);beginAccountLogin(account?.email||'');return;}
+ flowVersion++;state.account={...account};state.email=account.email;state.password='';state.newPassword='';state.confirmPassword='';state.digits=Array(6).fill('');state.verified=2;state.lockUntil=0;state.error='';state.message='';state.busy=false;entry.lastActivity=Date.now();returnAccountEmail=null;history.replaceState({},'',location.pathname+location.search);go('workspace');
+}
+function accountAction(action,email){
+ if(state.verified!==2||activeAccountEmail!==state.account?.email||!sessionValid(cmsSessions.get(activeAccountEmail)))return;
+ const account=findAccount(email);
+ if(action==='switch'&&account&&rememberedAccounts().some(x=>x.email===account.email))return activateAccount(account.email);
+ if(action==='add')return beginAccountLogin();
+ if(action==='remove'&&account){rememberAccount(account,false);return;}
+ if(action==='remember'){rememberAccount(state.account,true);return;}
+ if(action==='logout-all'){clearAccountSessions();state.verified=0;state.account=null;state.password='';history.replaceState({},'',location.pathname+location.search);go('login');}
+}
+function rememberedLoginMarkup(){
+ const rows=rememberedAccounts();if(!rows.length)return'';
+ return `<section class="remembered-login" aria-labelledby="remembered-login-title"><h3 id="remembered-login-title">${bilingual('已記住的帳號','Remembered accounts')}</h3><div id="remembered-account-list">${rows.map(a=>`<button type="button" class="remembered-login-account" data-account-switch="${escapeHTML(a.email)}"><span><strong>${escapeHTML(a.name)}</strong><small>${escapeHTML(a.email)}</small></span><span>${sessionValid(cmsSessions.get(a.email))?bilingual('快速切換','Switch'):bilingual('重新驗證','Verify again')}</span></button>`).join('')}</div><p class="small">${bilingual('只記住帳號資訊，不儲存密碼或驗證碼。重新開啟後仍需登入驗證。','Only account details are remembered, never passwords or codes. Reopening requires sign-in verification.')}</p></section>`;
+}
 async function renderIntegrated(mode){
  $('.shell').classList.add('auth-hidden');$('#cms-host').hidden=false;
+ if(mode==='cms'){
+  const account=findAccount(state.account?.email),entry=account&&cmsSessions.get(account.email);
+  if(!account||!sessionValid(entry)){if(entry)destroyAccount(account.email);state.verified=0;go('sessionExpired');return;}
+  if(cmsMode==='cms'&&activeAccountEmail===account.email&&entry.instance){entry.instance.setLocale(locale);return;}
+  pauseIntegrated();const version=++cmsLoading;cmsMode='cms';activeAccountEmail=account.email;
+  try{
+   if(!entry.host){entry.host=document.createElement('div');entry.host.dataset.accountSession=account.email;entry.host.hidden=true;$('#cms-host').append(entry.host);}
+   if(!entry.instance){const {mountCMS}=await import('./cms/app.js?v=20261111-workspace');if(version!==cmsLoading||state.verified!==2||activeAccountEmail!==account.email)return;
+    entry.instance=mountCMS({root:entry.host,account:{...account},locale,onLocale:setLanguage,onLogout:()=>{if(activeAccountEmail===account.email)handleAction('logout');},onActivity:()=>{if(activeAccountEmail===account.email&&state.verified===2){entry.lastActivity=Date.now();state.lastActivity=entry.lastActivity;}},getAccounts:accountState,onAccountAction:accountAction,isAuthorized:()=>state.verified===2&&activeAccountEmail===account.email&&sessionValid(entry)});
+   }
+   entry.host.hidden=false;entry.instance.setActive(true);entry.instance.setLocale(locale);cmsInstance=entry.instance;
+  }catch(error){console.error('CMS initialization failed',error);destroyAccount(account.email);pauseIntegrated();$('.shell').classList.remove('auth-hidden');$('#cms-host').hidden=true;go('network');}
+  return;
+ }
  if(cmsInstance&&cmsMode===mode){cmsInstance.setLocale(locale);return;}
- cmsInstance?.destroy();cmsInstance=null;const version=++cmsLoading;cmsMode=mode;
- try{if(mode==='phone'){const {mountPhone}=await import('./cms/phone.js?v=20261019-camera');if(version!==cmsLoading)return;cmsInstance=mountPhone({root:$('#cms-host'),locale,onExit:()=>{history.replaceState({},'',location.pathname+location.search);go('login')},onLocale:lang=>{locale=lang;}});}else{const {mountCMS}=await import('./cms/app.js?v=20261111-funding');if(version!==cmsLoading||(mode!=='public'&&(state.verified!==2||!state.account)))return;cmsInstance=mountCMS({root:$('#cms-host'),account:mode==='public'?null:state.account,publicRoute:mode==='public'?location.hash:null,locale,onLocale:setLanguage,onLogout:()=>handleAction('logout'),onActivity:()=>state.lastActivity=Date.now()});}}
- catch(error){console.error('CMS initialization failed',error);cmsInstance?.destroy();cmsInstance=null;cmsMode='';$('.shell').classList.remove('auth-hidden');$('#cms-host').hidden=true;go('network');}
+ pauseIntegrated();const version=++cmsLoading;cmsMode=mode;transientHost=document.createElement('div');$('#cms-host').append(transientHost);
+ try{if(mode==='phone'){const {mountPhone}=await import('./cms/phone.js?v=20261019-camera');if(version!==cmsLoading)return;cmsInstance=mountPhone({root:transientHost,locale,onExit:()=>{history.replaceState({},'',location.pathname+location.search);go(state.verified===2?'workspace':'login')},onLocale:lang=>{locale=lang;}});}else{const {mountCMS}=await import('./cms/app.js?v=20261111-workspace');if(version!==cmsLoading)return;cmsInstance=mountCMS({root:transientHost,account:null,publicRoute:location.hash,locale,onLocale:setLanguage,onActivity:()=>{}});}}
+ catch(error){console.error('CMS initialization failed',error);pauseIntegrated();$('.shell').classList.remove('auth-hidden');$('#cms-host').hidden=true;go('network');}
 }
 const view=$('#view');
 const asset=(name,cls='')=>`<span class="icon ${cls}"><img src="assets/${name}" alt=""></span>`;
@@ -37,9 +106,9 @@ function render(focus=true){
   if(location.hash.startsWith('#/identity/')){void renderIntegrated('phone');return;}
   if(/^#\/(apply|join)\//.test(location.hash)){void renderIntegrated('public');return;}
   if(state.page==='workspace'&&state.verified===2&&state.account){void renderIntegrated('cms');return;}
-  cmsLoading++;cmsInstance?.destroy();cmsInstance=null;cmsMode='';$('.shell').classList.remove('auth-hidden');$('#cms-host').hidden=true;
+  pauseIntegrated();$('.shell').classList.remove('auth-hidden');$('#cms-host').hidden=true;
   const p=state.page;view.className='form'+(['otp','expired'].includes(p)&&(state.error||state.message||p==='expired')?' compact':'');
-  if(p==='login')view.innerHTML=`${progress(1)}${intro('Welcome back','Sign in to your Azure workspace.')}<form id="credentials-form" novalidate>${formError()}<div class="fields">${field('email','Work email','Enter your email address')}${field('password','Password','Enter your password',true)}</div><button class="primary" id="submit" ${!credentialsReady()||state.busy?'disabled':''}>${state.busy?bilingual('確認中…','Checking…'):t('Continue')}</button></form><div class="help-row"><span>${t('Need access?')}</span>${action('Contact administrator','recovery')}</div>`;
+  if(p==='login')view.innerHTML=`${progress(1)}${intro('Welcome back','Sign in to your Azure workspace.')}<form id="credentials-form" novalidate>${formError()}<div class="fields">${field('email','Work email','Enter your email address')}${field('password','Password','Enter your password',true)}</div><label class="remember-account-choice"><input type="checkbox" id="remember-account" ${state.remember?'checked':''}><span>${bilingual('在此瀏覽器記住帳號','Remember this account in this browser')}</span></label><button class="primary" id="submit" ${!credentialsReady()||state.busy?'disabled':''}>${state.busy?bilingual('確認中…','Checking…'):t('Continue')}</button></form><div class="help-row"><span>${t('Need access?')}</span>${action('Contact administrator','recovery')}</div>${rememberedLoginMarkup()}`;
   else if(p==='methods')view.innerHTML=`${progress(2)}${intro('Verify it’s you','Choose how you’d like to verify your identity.')}<div class="methods">${[['email','Email verification','Send a code to a•••@example.com','af3b7.svg'],['sms','SMS verification','Text a code to +852 •••• 4821','9f8f4.svg'],['auth','Authenticator app','Use the code in your authenticator','ed81b.svg']].map(([m,title,desc,icon])=>`<button class="method" data-method="${m}"><span class="method-icon">${asset(icon)}</span><span class="method-copy"><strong>${t(title)}</strong><span>${t(desc)}</span></span>${asset('3e4c7.svg','method-chevron')}</button>`).join('')}</div><p class="small">${t('Only methods already set up for your account are shown.')}</p><button class="text-button" data-action="login">${backIcon()}${t('Back to sign in')}</button>`;
   else if(p==='otp'||p==='expired'){
     const m=state.method,expired=p==='expired';const title=m==='email'?'Check your email':m==='sms'?'Check your phone':'Open your authenticator';const desc=m==='email'?'Enter the 6-digit code sent to\na•••@example.com.':m==='sms'?'Enter the 6-digit code sent to\n+852 •••• 4821.':'Enter the 6-digit code from your authenticator app.';
@@ -57,11 +126,12 @@ function render(focus=true){
   else if(p==='network')view.innerHTML=`${intro('We couldn’t connect','Check your connection and try again. Your account hasn’t been signed in.')}${action('Try again','retry','primary')}${action('Back to sign in','login')}`;
   else if(p==='sessionExpired')view.innerHTML=`${intro('Your session has expired','You’ve been signed out after a period of inactivity. Sign in again to continue.')}${action('Sign in again','logout','primary')}`;
   else if(p==='linkExpired')view.innerHTML=`${intro('This reset link has expired','Request a new password reset link to continue.')}${action('Request a new link','forgot','primary')}${action('Back to sign in','login')}`;
+  if(returnAccountEmail&&sessionValid(cmsSessions.get(returnAccountEmail)))view.insertAdjacentHTML('beforeend',`<button type="button" class="secondary cancel-account-login" id="cancel-account-login">${bilingual('取消並返回目前帳號','Cancel and return to your account')}</button>`);
   tick();renderDemo();if(focus){view.querySelector('h2')?.focus({preventScroll:true});window.scrollTo({top:0,behavior:'instant'})}document.querySelector('.brand').classList.toggle('confirmed',state.verified===2);
 }
 function go(page,options={}){flowVersion++;state.busy=false;state.page=page;state.error=options.error||'';state.message=options.message||'';if(!options.keepDigits)state.digits=Array(6).fill('');state.lastActivity=Date.now();render();}
-function lock(){state.lockUntil=Date.now()+15*60*1000;go('locked');}
-function startMethod(m){if(state.verified<1)return go('login');state.method=m;state.code='381726';state.codeVersion=0;state.expires=Date.now()+300000;state.resend=0;state.attempts=0;go('otp');}
+function lock(){state.lockUntil=Date.now()+15*60*1000;authFailures().lockUntil=state.lockUntil;go('locked');}
+function startMethod(m){if(state.verified<1)return go('login');syncAuthFailures();if(state.lockUntil>Date.now())return go('locked');state.method=m;state.code='381726';state.codeVersion=0;state.expires=Date.now()+300000;state.resend=0;go('otp');}
 function resend(){if(state.method==='auth'||Date.now()<state.resend)return;state.codeVersion++;state.code=state.codeVersion%2?'042851':'381726';state.expires=Date.now()+300000;state.resend=Date.now()+30000;go('otp',{message:'A new code has been sent. Your previous code no longer works.'});$('#announcer').textContent=t('A new code has been sent. Your previous code no longer works.');$('#digit-0')?.focus();}
 const remaining=end=>Math.max(0,Math.ceil((end-Date.now())/1000));
 const mmss=sec=>String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0');
@@ -73,12 +143,13 @@ function tick(){
   const lockTimer=$('#lock-timer');if(lockTimer)lockTimer.textContent=bilingual('剩餘時間 ','Time remaining ')+mmss(remaining(state.lockUntil));
   if(state.lockUntil&&remaining(state.lockUntil)===0){state.lockUntil=0;state.attempts=0;state.credentialAttempts=0;if(state.page==='locked')go('login')}
   if(state.page==='reset'&&remaining(state.resetExpires)===0)go('linkExpired');
-  if(state.verified>0&&!['sessionExpired','locked','recovery','login'].includes(state.page)&&Date.now()-state.lastActivity>900000){state.verified=0;state.password='';go('sessionExpired')}
+  for(const [email,entry] of cmsSessions){if(!sessionValid(entry)){const current=state.verified===2&&state.account?.email===email;destroyAccount(email);if(returnAccountEmail===email)returnAccountEmail=null;if(current){state.verified=0;state.account=null;state.password='';go('sessionExpired');return;}}}
+  if(state.verified===1&&!['sessionExpired','locked','recovery','login'].includes(state.page)&&Date.now()-state.lastActivity>SESSION_IDLE){state.verified=0;state.password='';go('sessionExpired')}
 }
-function resetDemo(){resetDemoPasswords();history.replaceState({},'',location.pathname+location.search);Object.assign(state,{account:null,email:'',password:'',newPassword:'',confirmPassword:'',demoPassword:DEMO_PASSWORD,attempts:0,credentialAttempts:0,lockUntil:0,verified:0,expires:0,resend:0,resetExpires:0});go('login');}
+function resetDemo(){clearAccountSessions();accountAuthFailures.clear();resetDemoPasswords();history.replaceState({},'',location.pathname+location.search);Object.assign(state,{account:null,email:'',password:'',newPassword:'',confirmPassword:'',demoPassword:DEMO_PASSWORD,attempts:0,credentialAttempts:0,lockUntil:0,verified:0,expires:0,resend:0,resetExpires:0});go('login');}
 function handleAction(id){
   if(id==='resend')return resend();
-  if(id==='logout'){state.verified=0;state.account=null;state.password='';history.replaceState({},'',location.pathname+location.search);return go('login')}
+  if(id==='logout'){flowVersion++;if(state.account?.email)destroyAccount(state.account.email);returnAccountEmail=null;state.verified=0;state.account=null;state.password='';history.replaceState({},'',location.pathname+location.search);return go('login')}
   if(id==='login'){if(state.lockUntil>Date.now())return go('locked');state.verified=0;return go('login')}
   if(id==='methods'){if(state.verified<1)return go('login');return go('methods')}
   if(id==='workspace'){if(state.verified<2)return go('login');return go('workspace')}
@@ -86,25 +157,25 @@ function handleAction(id){
   if(id==='reset-resend'){if(Date.now()<state.resetResend)return;state.resetExpires=Date.now()+900000;state.resetResend=Date.now()+30000;render(false);return}
   if(['forgot','recovery'].includes(id))return go(id);
 }
-view.addEventListener('click',event=>{const el=event.target.closest('button');if(!el)return;if(el.dataset.action)handleAction(el.dataset.action);if(el.dataset.method)startMethod(el.dataset.method);if(el.dataset.eye){const input=$('#'+el.dataset.eye);const visible=input.type==='password';input.type=visible?'text':'password';el.setAttribute('aria-pressed',String(visible));el.setAttribute('aria-label',visible?bilingual('隱藏密碼','Hide password'):bilingual('顯示密碼','Show password'))}});
+view.addEventListener('click',event=>{const el=event.target.closest('button');if(!el)return;if(el.id==='cancel-account-login')return activateAccount(returnAccountEmail);if(el.dataset.accountSwitch){const email=el.dataset.accountSwitch;if(!rememberedAccounts().some(a=>a.email===email))return;return activateAccount(email);}if(el.dataset.action)handleAction(el.dataset.action);if(el.dataset.method)startMethod(el.dataset.method);if(el.dataset.eye){const input=$('#'+el.dataset.eye);const visible=input.type==='password';input.type=visible?'text':'password';el.setAttribute('aria-pressed',String(visible));el.setAttribute('aria-label',visible?bilingual('隱藏密碼','Hide password'):bilingual('顯示密碼','Show password'))}});
 function updateValidity(){const b=$('#submit');if(!b)return;b.disabled=state.page==='login'?!credentialsReady():state.page==='forgot'?!validEmail():state.page==='reset'?!passwordReady():state.page==='otp'?!codeReady():true;}
 function putDigits(index,value){const str=value.replace(/[^0-9]/g,'');if(str.length>1){if(str.length===6)index=0;for(let i=index;i<6;i++)state.digits[i]=str[i-index]||''}else state.digits[index]=str;$$('[data-digit]').forEach((el,i)=>el.value=state.digits[i]);if(str.length){const target=Math.min(index+str.length,5);$('#digit-'+target)?.focus();$('#digit-'+target)?.select()}updateValidity()}
-view.addEventListener('input',e=>{const input=e.target;if(input.dataset.digit!==undefined){putDigits(Number(input.dataset.digit),input.value);return}if(['email','password','newPassword','confirmPassword'].includes(input.id)){state[input.id]=input.value;updateValidity()}});
+view.addEventListener('input',e=>{const input=e.target;if(input.id==='remember-account'){state.remember=input.checked;return;}if(input.dataset.digit!==undefined){putDigits(Number(input.dataset.digit),input.value);return}if(['email','password','newPassword','confirmPassword'].includes(input.id)){state[input.id]=input.value;updateValidity()}});
 view.addEventListener('paste',e=>{if(e.target.dataset.digit===undefined)return;e.preventDefault();putDigits(Number(e.target.dataset.digit),e.clipboardData.getData('text'))});
 view.addEventListener('keydown',e=>{if(e.target.dataset.digit===undefined)return;const i=Number(e.target.dataset.digit);if(e.key==='Backspace'&&!e.target.value&&i>0){e.preventDefault();state.digits[i-1]='';$('#digit-'+(i-1)).value='';$('#digit-'+(i-1)).focus();updateValidity()}if(['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();const j=Math.max(0,Math.min(5,i+(e.key==='ArrowLeft'?-1:1)));$('#digit-'+j).focus();$('#digit-'+j).select()}});
 view.addEventListener('focusin',e=>{if(e.target.dataset.digit!==undefined)e.target.select()});
 view.addEventListener('submit',async e=>{e.preventDefault();if(state.busy)return;
   if(e.target.id==='credentials-form'){
-    if(state.lockUntil>Date.now())return go('locked');if(!credentialsReady())return;state.busy=true;render(false);const version=++flowVersion;
+    syncAuthFailures();if(state.lockUntil>Date.now())return go('locked');if(!credentialsReady())return;state.busy=true;render(false);const version=++flowVersion;
     await new Promise(r=>setTimeout(r,420));if(version!==flowVersion)return;state.busy=false;
-    const account=authenticate(state.email,state.password);if(!account){state.credentialAttempts++;if(state.credentialAttempts>=5)return lock();return go('login',{error:'The email or password is incorrect. Please try again.'})}
-    state.account=account;state.demoPassword=currentDemoPassword(state.email);state.verified=1;state.credentialAttempts=0;go('methods');
+    const account=authenticate(state.email,state.password);if(!account){state.credentialAttempts=++authFailures().credentialAttempts;if(state.credentialAttempts>=5)return lock();return go('login',{error:'The email or password is incorrect. Please try again.'})}
+    state.account=account;state.demoPassword=currentDemoPassword(state.email);state.verified=1;state.credentialAttempts=0;authFailures().credentialAttempts=0;go('methods');
   }else if(e.target.id==='otp-form'){
     if(!codeReady())return;if(state.method!=='auth'&&Date.now()>=state.expires)return go('expired');
-    if(state.digits.join('')!==state.code){state.attempts++;if(state.attempts>=5)return lock();const error='invalid-otp';go('otp',{error,keepDigits:true});$('#digit-0').focus();$('#digit-0').select();return}
-    go('loading');const version=flowVersion;state.busy=true;await new Promise(r=>setTimeout(r,850));if(version!==flowVersion)return;state.verified=2;state.attempts=0;state.password='';go('workspace');
+    if(state.digits.join('')!==state.code){state.attempts=++authFailures().otpAttempts;if(state.attempts>=5)return lock();const error='invalid-otp';go('otp',{error,keepDigits:true});$('#digit-0').focus();$('#digit-0').select();return}
+    go('loading');const version=flowVersion;state.busy=true;await new Promise(r=>setTimeout(r,850));if(version!==flowVersion)return;state.verified=2;state.attempts=0;state.password='';accountAuthFailures.delete(state.account.email);verifiedAccount();returnAccountEmail=null;go('workspace');
   }else if(e.target.id==='forgot-form'){if(!validEmail())return;state.resetExpires=Date.now()+900000;state.resetResend=Date.now()+30000;go('sent');
-  }else if(e.target.id==='reset-form'){if(Date.now()>=state.resetExpires)return go('linkExpired');if(!passwordReady())return;if(state.newPassword===currentDemoPassword(state.email))return go('reset',{error:'same-password'});resetPassword(state.email,state.newPassword);state.demoPassword=state.newPassword;state.newPassword='';state.confirmPassword='';state.password='';state.verified=0;state.account=null;state.resetExpires=0;go('resetDone')}
+  }else if(e.target.id==='reset-form'){if(Date.now()>=state.resetExpires)return go('linkExpired');if(!passwordReady())return;if(state.newPassword===currentDemoPassword(state.email))return go('reset',{error:'same-password'});destroyAccount(findAccount(state.email)?.email);accountAuthFailures.delete(String(state.email).trim().toLowerCase());resetPassword(state.email,state.newPassword);state.demoPassword=state.newPassword;state.newPassword='';state.confirmPassword='';state.password='';state.verified=0;state.account=null;state.resetExpires=0;go('resetDone')}
 });
 
 // Language, demo credentials and verification state stay in memory only.
@@ -182,6 +253,6 @@ async function changeSlide(index){
 function scheduleCarousel(){clearInterval(carouselTimer);if(!paused&&!reduceMotion.matches)carouselTimer=setInterval(()=>{if(!document.hidden&&matchMedia('(min-width:1200px)').matches&&!dialog.open)changeSlide((slideIndex+1)%slides.length)},7000)}
 function updateMotionButton(){const b=$('#motion-toggle');b.disabled=reduceMotion.matches;b.title=reduceMotion.matches?bilingual('已依系統設定減少動態效果','Reduced motion follows your system preference'):'';b.setAttribute('aria-label',paused?bilingual('播放動畫','Play animation'):bilingual('暫停動畫','Pause animation'));b.setAttribute('aria-pressed',String(paused));b.firstElementChild.textContent=paused?'▷':'Ⅱ';$('.brand').classList.toggle('paused',paused)}
 $$('.dot[data-slide]').forEach(b=>b.addEventListener('click',()=>{changeSlide(Number(b.dataset.slide));scheduleCarousel()}));$('#motion-toggle').addEventListener('click',()=>{paused=!paused;updateMotionButton();scheduleCarousel()});reduceMotion.addEventListener('change',e=>{paused=e.matches;if(e.matches)renderSlide();updateMotionButton();scheduleCarousel()});
-document.addEventListener('keydown',()=>state.lastActivity=Date.now());document.addEventListener('pointerdown',()=>state.lastActivity=Date.now());
+function rootActivity(){state.lastActivity=Date.now();const entry=activeAccountEmail&&cmsSessions.get(activeAccountEmail);if(state.verified===2&&entry)entry.lastActivity=state.lastActivity;}document.addEventListener('keydown',rootActivity);document.addEventListener('pointerdown',rootActivity);
 window.addEventListener('hashchange',()=>{if(location.hash.startsWith('#/identity/')||/^#\/(apply|join)\//.test(location.hash))render();else if(cmsMode==='phone'||cmsMode==='public')go(state.verified===2?'workspace':'login');});
 setLanguage(locale);setInterval(tick,1000);scheduleCarousel();

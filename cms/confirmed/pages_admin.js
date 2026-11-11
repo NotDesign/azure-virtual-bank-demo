@@ -4,16 +4,16 @@ const MONTH = '2026-10';
 // ---------- dashboard ----------
 PAGES['*:dashboard'] = () => {
   const cs = custsInScope(), txs = txsInScope();
-  const m = txs.filter((t) => t.date.startsWith(MONTH));
+  const m = txs.filter((t) => window.AzureChartPeriods ? AzureChartPeriods.includes('dashboard',t.date) : t.date.startsWith(MONTH));
   const vol = m.filter((t) => t.amt).reduce((a, t) => a + volH(t), 0);
   const sp = m.map(split);
   const fees = sp.reduce((a, s) => a + s.actual, 0);
   const earn = sp.reduce((a, s) => a + myEarn(s), 0);
   const apps = appsInScope().filter((a) => !['已开通', '渠道驳回', '已拒绝'].includes(a.status)).length;
-  const earnLabel = { hq: '本月全权管理者净收益', l1: '本月一级净佣金', l2: '本月二级佣金' }[S.portal];
+  const earnLabel = window.AzureChartPeriods ? {hq:AzureChartPeriods.text('期間全權管理者淨收益','期间全权管理者净收益','Administrator net income'),l1:AzureChartPeriods.text('期間一級淨佣金','期间一级净佣金','Level 1 net commission'),l2:AzureChartPeriods.text('期間二級佣金','期间二级佣金','Level 2 commission')}[S.portal] : { hq: '本月全权管理者净收益', l1: '本月一级净佣金', l2: '本月二级佣金' }[S.portal];
   const desc = { hq: '全平台：自营、一级、二级的客户和交易汇总', l1: '自己的直属客户 + 下属二级代理的客户', l2: '我推荐的客户与佣金' }[S.portal];
   // daily series last 30 days
-  const days = []; for (let i = 29; i >= 0; i--) days.push(addDays(TODAY, -i));
+  const days = [], period=window.AzureChartPeriods?.get('dashboard'); if(period){for(let d=period.from,n=0;d<=period.to&&n<366;d=addDays(d,1),n++)days.push(d);}else for(let i=29;i>=0;i--)days.push(addDays(TODAY,-i));
   const series = days.map((d) => txs.filter((t) => t.date === d && t.amt).reduce((a, t) => a + volH(t), 0) / 1000);
   const byProd = PRODUCTS.map((p) => sp.filter((_, i) => m[i].prod === p.code).reduce((a, s) => a + myEarn(s), 0));
   AFTER.push(() => {
@@ -26,17 +26,17 @@ PAGES['*:dashboard'] = () => {
   let ownerTbl = '';
   if (S.portal === 'hq') {
     const groups = [['自营', (c) => !c.l1], ...AGENTS.filter((a) => a.level === 1).map((a) => [a.name, (c) => c.l1 === a.id])];
-    ownerTbl = `<div class="card mt"><div class="card-head"><h3 class="card-title">按归属汇总（本月）</h3><span class="card-sub">客户费用由 Allinpay 扣，金额来自渠道回传</span></div><div class="tbl-wrap"><table><thead><tr><th>归属</th><th class="r">客户数</th><th class="r">交易额 (HKD)</th><th class="r">客户费用</th><th class="r">渠道成本</th><th class="r">代理佣金</th><th class="r">全权管理者收益</th></tr></thead><tbody>${groups.map(([n, f]) => {
+    ownerTbl = `<div class="card mt"><div class="card-head"><h3 class="card-title">${window.AzureChartPeriods?AzureChartPeriods.text('按歸屬彙總（所選期間）','按归属汇总（所选期间）','Ownership summary (selected period)'):'按归属汇总（本月）'}</h3><span class="card-sub">客户费用由 Allinpay 扣，金额来自渠道回传</span></div><div class="tbl-wrap"><table><thead><tr><th>归属</th><th class="r">客户数</th><th class="r">交易额 (HKD)</th><th class="r">客户费用</th><th class="r">渠道成本</th><th class="r">代理佣金</th><th class="r">全权管理者收益</th></tr></thead><tbody>${groups.map(([n, f]) => {
       const ids = new Set(CUSTOMERS.filter(f).map((c) => c.id)); const mt = m.filter((t) => ids.has(t.cust)); const s = mt.map(split);
       const sum = (k) => s.reduce((a, x) => a + x[k], 0);
       return `<tr><td class="bold">${n}</td><td class="r">${ids.size}</td><td class="r">${nf(mt.filter((t) => t.amt).reduce((a, t) => a + volH(t), 0), 0)}</td><td class="r">${nf(sum('actual'))}</td><td class="r">${nf(sum('cost'))}</td><td class="r">${nf(sum('l1'))}</td><td class="r bold">${nf(sum('hq'))}</td></tr>`;
     }).join('')}</tbody></table></div></div>`;
   }
-  const recent = txs.slice(0, 6);
+  const recent = (window.AzureChartPeriods?m:txs).slice(0, 6);
   return head('仪表盘', desc, `<button class="btn" onclick="go('${S.portal}','links')">${ICON.plus} 生成开户链接</button>`) +
-    `<div class="grid g5">${kpi('客户数', cs.length, `${cs.filter((c) => c.status === '已开通').length} 个已开通`)}${kpi('本月交易额', 'HKD ' + nf(vol / 1e6, 2) + 'M', '入账 + 付款 + 换汇，折港币')}${kpi('本月客户费用', 'HKD ' + nf(fees, 0), 'Allinpay 代扣')}${kpi(earnLabel, 'HKD ' + nf(earn, 0), S.portal === 'hq' ? '平台毛利 − 一级佣金' : 'T+15 结算')}${kpi('进行中申请', apps, '<a class="link" href="#/' + S.portal + '/apps">查看</a>')}</div>
-    <div class="grid g3 mt"><div class="card span2"><div class="card-head"><h3 class="card-title">近 30 天交易额</h3><span class="card-sub">千港币</span></div><div class="chart-box"><canvas id="dVol"></canvas></div></div>
-    <div class="card"><div class="card-head"><h3 class="card-title">本月收益构成</h3><span class="card-sub">按产品</span></div><div class="chart-box" style="height:300px"><canvas id="dProd"></canvas></div></div></div>
+    `<div class="grid g5">${kpi('客户数', cs.length, `${cs.filter((c) => c.status === '已开通').length} 个已开通`)}${kpi(window.AzureChartPeriods?AzureChartPeriods.text('期間交易額','期间交易额','Period transaction volume'):'本月交易额', 'HKD ' + nf(vol / 1e6, 2) + 'M', '入账 + 付款 + 换汇，折港币')}${kpi(window.AzureChartPeriods?AzureChartPeriods.text('期間客戶費用','期间客户费用','Period customer fees'):'本月客户费用', 'HKD ' + nf(fees, 0), 'Allinpay 代扣')}${kpi(earnLabel, 'HKD ' + nf(earn, 0), S.portal === 'hq' ? '平台毛利 − 一级佣金' : 'T+15 结算')}${kpi('进行中申请', apps, '<a class="link" href="#/' + S.portal + '/apps">查看</a>')}</div>
+    <div class="grid g3 mt"><div class="card span2"><div class="card-head"><h3 class="card-title">${window.AzureChartPeriods?AzureChartPeriods.text('交易額趨勢','交易额趋势','Transaction volume trend'):'近 30 天交易额'}</h3><span class="card-sub">千港币</span></div><div class="chart-box"><canvas id="dVol"></canvas></div></div>
+    <div class="card"><div class="card-head"><h3 class="card-title">${window.AzureChartPeriods?AzureChartPeriods.text('期間收益構成','期间收益构成','Period income composition'):'本月收益构成'}</h3><span class="card-sub">按产品</span></div><div class="chart-box" style="height:300px"><canvas id="dProd"></canvas></div></div></div>
     ${ownerTbl}
     <div class="card mt"><div class="card-head"><h3 class="card-title">最新交易</h3><a class="link" href="#/${S.portal}/txs">全部交易</a></div><div class="tbl-wrap">${txTable(recent, true)}</div></div>`;
 };
@@ -259,7 +259,7 @@ PAGES['*:commission'] = () => {
 // ---------- revenue (HQ) ----------
 PAGES['hq:revenue'] = () => {
   const mo = S.ui.mo || MONTH;
-  const m = TXS.filter((t) => t.date.startsWith(mo)); const sp = m.map(split);
+  const m = TXS.filter((t) => window.AzureChartPeriods ? AzureChartPeriods.includes('revenue',t.date) : t.date.startsWith(mo)); const sp = m.map(split);
   const sum = (k, f = () => true) => sp.reduce((a, s, i) => a + (f(m[i]) ? s[k] : 0), 0);
   AFTER.push(() => {
     const txt = cssVar('--color-text-muted'), grid = cssVar('--color-divider');
@@ -270,7 +270,7 @@ PAGES['hq:revenue'] = () => {
       { label: '二级佣金', data: PRODUCTS.map((p) => sum('l2', (t) => t.prod === p.code)), backgroundColor: '#af52de' }] },
       options: { maintainAspectRatio: false, plugins: { legend: { labels: { color: txt, boxWidth: 10 } } }, scales: { x: { stacked: true, grid: { display: false }, ticks: { color: txt } }, y: { stacked: true, grid: { color: grid }, ticks: { color: txt } } } } });
   });
-  return head('收益统计', '客户费用 → 渠道成本 → 代理佣金 → 全权管理者净收益', `<select class="select" onchange="setUI('mo',this.value)"><option value="2026-10" ${mo === '2026-10' ? 'selected' : ''}>2026 年 10 月（至今）</option><option value="2026-09" ${mo === '2026-09' ? 'selected' : ''}>2026 年 9 月</option></select>`) +
+  return head('收益统计', '客户费用 → 渠道成本 → 代理佣金 → 全权管理者净收益') +
     `<div class="grid g5">${kpi('客户费用（Allinpay 扣）', 'HKD ' + nf(sum('actual'), 0))}${kpi('渠道成本', 'HKD ' + nf(sum('cost'), 0))}${kpi('平台毛利', 'HKD ' + nf(sum('margin'), 0), '= Allinpay 应付分润')}${kpi('代理佣金', 'HKD ' + nf(sum('l1'), 0), '一级 + 二级')}${kpi('全权管理者净收益', 'HKD ' + nf(sum('hq'), 0))}</div>
     <div class="card mt"><div class="card-head"><h3 class="card-title">按产品拆分</h3><span class="card-sub">HKD</span></div><div class="chart-box" style="height:300px"><canvas id="rev"></canvas></div></div>
     <div class="card mt"><div class="tbl-wrap"><table><thead><tr><th>产品</th><th class="r">笔数</th><th class="r">客户费用</th><th class="r">渠道成本</th><th class="r">平台毛利</th><th class="r">一级佣金</th><th class="r">二级佣金</th><th class="r">全权管理者净收益</th></tr></thead><tbody>${PRODUCTS.map((p) => { const f = (t) => t.prod === p.code; return `<tr><td class="bold">${p.name}</td><td class="r">${m.filter(f).length}</td><td class="r">${nf(sum('actual', f))}</td><td class="r">${nf(sum('cost', f))}</td><td class="r">${nf(sum('margin', f))}</td><td class="r">${nf(sum('l1net', f))}</td><td class="r">${nf(sum('l2', f))}</td><td class="r bold">${nf(sum('hq', f))}</td></tr>`; }).join('')}</tbody></table></div></div>`;

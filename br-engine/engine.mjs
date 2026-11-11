@@ -1,9 +1,9 @@
 import * as pdfjs from '../vendor/pdfjs/build/pdf.mjs';
-import {prepareSmallScan} from './layout.mjs';
+import {prepareSmallScan,ocrRows,cropCanvas} from './layout.mjs?v=20261111-documents';
 import {recoverCompactBR} from './compact-recovery.mjs?v=20260929-uploads';
-import {recoverLabelledBR} from './structured-recovery.mjs?v=20260929-uploads';
+import {recoverLabelledBR} from './structured-recovery.mjs?v=20261111-documents';
 import Tesseract from '../vendor/tesseract/tesseract.esm.min.js';
-import {parseBR} from './parser.mjs?v=20260929-uploads';
+import {parseBR} from './parser.mjs?v=20261111-documents';
 import {rotateCanvas,estimateSkew,enhanceCanvas} from './image-processing.mjs';
 const asset = path => new URL(`../vendor/${path}`, import.meta.url).href;
 pdfjs.GlobalWorkerOptions.workerSrc=asset('pdfjs/build/pdf.worker.mjs');
@@ -105,16 +105,8 @@ export async function recognizeDocument({canvas,text,page=1,forceOCR=false,signa
 // OCR reading order can visit the entire label column before the value column.
 // Rebuild physical rows from word coordinates before applying BR labels.
 export function textByPosition(data) {
- const words=(data.blocks||[]).flatMap(b=>(b.paragraphs||[]).flatMap(p=>(p.lines||[]).flatMap(l=>l.words||[]))).filter(w=>w.text?.trim());
- if(!words.length)return data.text||'';
- const rows=[];
- for(const word of words.sort((a,b)=>a.bbox.y0-b.bbox.y0)){
-  const box=word.bbox,h=box.y1-box.y0,cy=(box.y0+box.y1)/2;
-  let row=rows.find(r=>Math.abs(r.cy-cy)<Math.max(r.height,h)*.55);
-  if(!row){row={cy,height:h,words:[]};rows.push(row);}
-  row.words.push(word);row.height=Math.max(row.height,h);
- }
- return rows.sort((a,b)=>a.cy-b.cy).map(r=>r.words.sort((a,b)=>a.bbox.x0-b.bbox.x0).map(w=>w.text).join(' ')).join('\n');
+ const rows=ocrRows(data);
+ return rows.length?rows.map(r=>r.words.map(w=>w.text).join(' ')).join('\n'):data.text||'';
 }
 
 // General document text reader used by the multi-file review workflow.
@@ -128,10 +120,42 @@ export async function extractDocumentText({canvas,text,signal,onProgress=()=>{}}
   pending.then(w=>{if(signal?.aborted)void w.terminate();},()=>{});
   worker=await abortable(pending,signal);
   await abortable(worker.setParameters({preserve_interword_spaces:'1',tessedit_pageseg_mode:Tesseract.PSM.AUTO,user_defined_dpi:'300'}),signal);
-  const {data}=await abortable(worker.recognize(canvas,{}, {text:true,blocks:true}),signal);
-  return {text:textByPosition(data),method:'本機 OCR',confidence:Math.round(data.confidence)};
+  const marker=value=>/Registration\s+(?:Certificate|Ordinance)|Identity\s*Card|Certificate\s+of\s+Incorporation|Annual\s+Return|Corporate\s+Authori[sz]ation|(?:Bank|Business\s+Direct|Account)\s+Statement|商戶.{0,8}申請|公司授權書|身份證|公司註冊證書/i.test(value.replace(/([\u3400-\u9fff])\s+(?=[\u3400-\u9fff])/g,'$1'));
+  const read=async(source,rotation)=>{const {data}=await abortable(worker.recognize(source,{}, {text:true,blocks:true}),signal);const value=textByPosition(data);return{data,text:value,rotation,width:source.width,height:source.height,score:(marker(value)?100:0)+(Number(data.confidence)||0)+Math.min(value.length,1000)/100};};
+  let best=await read(canvas,0);
+  if(!marker(best.text)){
+   for(const rotation of [90,270,180]){if(signal?.aborted)throw new DOMException('Aborted','AbortError');const turned=rotateCanvas(canvas,rotation);try{const next=await read(turned,rotation);if(next.score>best.score)best=next;if(marker(next.text)&&next.data.confidence>=60)break;}finally{turned.width=1;}}
+  }
+  return {text:best.text,rows:ocrRows(best.data),width:best.width,height:best.height,rotation:best.rotation,method:best.rotation?'本機 OCR（自動轉向）':'本機 OCR',confidence:Math.round(best.data.confidence)};
  } finally {signal?.removeEventListener('abort',cancel);if(worker)await worker.terminate().catch(()=>{});}
 }
+// Read a printed HKID number from its standard lower card region. The holder's
+// company role is deliberately not inferred here; all values remain candidates.
+export async function recoverIdentityFields({canvas,rotation=0,signal}) {
+ const source=rotation?rotateCanvas(canvas,rotation):canvas;let worker;
+ const cancel=()=>{if(worker)void worker.terminate();};signal?.addEventListener('abort',cancel,{once:true});
+ try{
+  const pending=Tesseract.createWorker('eng',Tesseract.OEM.LSTM_ONLY,{workerPath:asset('tesseract/worker.min.js'),corePath:asset('core/'),langPath:asset('lang'),cacheMethod:'none',workerBlobURL:false,errorHandler:()=>{}});
+  pending.then(w=>{if(signal?.aborted)void w.terminate();},()=>{});worker=await abortable(pending,signal);
+  await abortable(worker.setParameters({tessedit_pageseg_mode:'6',preserve_interword_spaces:'0',tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789()',user_defined_dpi:'300'}),signal);
+  for(const box of [{x:.65,y:.82,width:.34,height:.15,psm:'7'},{x:.50,y:.72,width:.49,height:.27,psm:'6'},{x:0,y:.68,width:1,height:.32,psm:'6'}]){
+   const piece=cropCanvas(source,{x:source.width*box.x,y:source.height*box.y,width:source.width*box.width,height:source.height*box.height},2),enhanced=enhanceCanvas(piece);
+   try{
+    await abortable(worker.setParameters({tessedit_pageseg_mode:box.psm}),signal);
+    const {data}=await abortable(worker.recognize(enhanced,{}, {text:true}),signal),raw=String(data.text||'').toUpperCase();
+    const ids=[...new Set([...raw.matchAll(/(?<![A-Z0-9])([A-Z]{1,2})\s*(\d{6})\s*\(?([0-9A])\)?(?![A-Z0-9])/g)].map(m=>m[1]+m[2]+'('+m[3]+')').filter(validHKID))];
+    if(ids.length===1&&data.confidence>=40)return[{key:'identityNo',value:ids[0],step:2,confidence:Math.round(data.confidence),source:data.text.trim(),method:'本機 OCR（證件區域）',reviewRequired:true}];
+   }finally{piece.width=1;enhanced.width=1;}
+  }
+  return[];
+ }finally{signal?.removeEventListener('abort',cancel);if(worker)await worker.terminate().catch(()=>{});if(source!==canvas)source.width=1;}
+}
+function validHKID(value){
+ const m=value.match(/^([A-Z]{1,2})(\d{6})\(([0-9A])\)$/);if(!m)return false;
+ const letters=m[1].padStart(2,' '),values=[...letters].map(c=>c===' '?36:c.charCodeAt(0)-55).concat([...m[2]].map(Number),m[3]==='A'?10:+m[3]);
+ return values.reduce((n,v,i)=>n+v*(i===8?1:9-i),0)%11===0;
+}
+
 function abortable(promise,signal) {
  if(!signal)return promise;
  if(signal.aborted)return Promise.reject(new DOMException('Aborted','AbortError'));
