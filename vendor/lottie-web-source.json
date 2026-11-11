@@ -1,0 +1,17 @@
+{
+  "library": "lottie-web",
+  "version": "5.13.0",
+  "renderer": "light SVG",
+  "source": "https://github.com/airbnb/lottie-web/tree/v5.13.0",
+  "files": [
+    {
+      "path": "lottie-light-5.13.0.min.js",
+      "sha256": "9588432bec30c8ef8200bac4a67d8aaad881047bc2a6c9fa624d90ec96402410"
+    },
+    {
+      "path": "lottie-web-LICENSE.md",
+      "sha256": "9d8d4d8b4bb99572ee8b51025a30b8493d949798cac465c6c15b1b29420bcb06"
+    }
+  ],
+  "animations": "Self-authored inline shape data, no images, expressions or remote assets"
+}

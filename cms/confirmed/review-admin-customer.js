@@ -83,7 +83,7 @@
     const host=document.getElementById('admin-customer-host');if(!host)return;
     channel=crypto.randomUUID();frameCustomer=customerId;
     frame=document.createElement('iframe');frame.className='admin-customer-frame';frame.title=copy('全權管理 · 客戶 eBanking','全权管理 · 客户 eBanking','Administrator · Customer eBanking');frame.allow='camera';frame.dataset.adminChannel=channel;
-    frame.src='index.html?v='+encodeURIComponent(new URL(location.href).searchParams.get('v')||'20261111-motion')+'&locale='+encodeURIComponent(I18N.lang)+'#/cust/'+page;frame.addEventListener('load',sendSession);host.replaceChildren(frame);
+    frame.src='index.html?v='+encodeURIComponent(new URL(location.href).searchParams.get('v')||'20261111-wallets2')+'&locale='+encodeURIComponent(I18N.lang)+'#/cust/'+page;frame.addEventListener('load',sendSession);host.replaceChildren(frame);
   }
   window.adminSelectCustomer = id => {
     if(!fullAdmin() || !getCustomers().some(c=>c.id===id))return;

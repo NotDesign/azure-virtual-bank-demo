@@ -1,0 +1,7 @@
+/* Status icons are decorative; semantic status text remains in the owning flow. */
+.wallet-motion{display:inline-grid;place-items:center;flex:none;width:var(--wallet-motion-size,48px);height:var(--wallet-motion-size,48px);line-height:0;overflow:hidden;vertical-align:middle;pointer-events:none;color:var(--accent)}
+.wallet-motion[data-wallet-motion=success]{color:var(--success,#00875a)}
+.wallet-motion[data-wallet-motion=error]{color:var(--danger,#d92d20)}
+.wallet-motion>svg{display:block;width:100%!important;height:100%!important;overflow:visible;pointer-events:none}
+.wallet-motion svg [stroke]{stroke:currentColor}
+@media(prefers-reduced-motion:reduce){.wallet-motion,.wallet-motion *{animation:none!important;transition:none!important}}

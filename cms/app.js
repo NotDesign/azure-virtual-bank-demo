@@ -2,7 +2,7 @@ export function mountCMS({root,account,publicRoute,locale,onLocale,onLogout,onAc
  const abort=new AbortController();const frame=document.createElement('iframe');let active=true;
  frame.className='cms-confirmed-frame';frame.title='Azure CMS';frame.allow='camera';
  const frameURL=new URL('cms/confirmed/index.html',location.href);
- frameURL.searchParams.set('v',new URL(location.href).searchParams.get('v')||'20261111-motion');
+ frameURL.searchParams.set('v',new URL(location.href).searchParams.get('v')||'20261111-wallets2');
  frameURL.searchParams.set('locale',locale||'zh-Hant');
  frameURL.hash=publicRoute||`#/${account.role}/${account.role==='cust'?'home':'dashboard'}`;
  frame.src=frameURL.href;
