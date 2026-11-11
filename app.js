@@ -1,4 +1,4 @@
-import {RememberedSessions} from './remembered-sessions.js?v=20261111-quick-switch';
+import {RememberedSessions} from './remembered-sessions.js?v=20261111-switch-clarity';
 import {zh,en} from './copy.js';
 import {zhCN,toSimplified} from './simplified.js';
 import {DEMO_ACCOUNTS,DEMO_PASSWORD,authenticate,findAccount,currentDemoPassword,resetPassword,resetDemoPasswords} from './demo-accounts.js';
@@ -71,7 +71,9 @@ async function accountAction(action,email){
 }
 function rememberedLoginMarkup(){
  const rows=rememberedAccounts();if(!rows.length)return'';
- return `<section class="remembered-login" aria-labelledby="remembered-login-title"><h3 id="remembered-login-title">${bilingual('已記住的帳號','Remembered accounts')}</h3><div id="remembered-account-list">${rows.map(a=>`<button type="button" class="remembered-login-account" data-account-switch="${escapeHTML(a.email)}"><span><strong>${escapeHTML(a.name)}</strong><small>${escapeHTML(a.email)}</small></span><span>${sessionValid(cmsSessions.get(a.email))?bilingual('快速切換','Switch'):bilingual('登入','Sign in')}</span></button>`).join('')}</div><p class="small">${bilingual('已驗證的帳號可直接切換，重新整理後也適用；手動登出或移除記住後需再次登入。','Verified remembered accounts can switch directly, including after reload. Signing out or forgetting an account requires sign-in again.')}</p></section>`;
+ const ready=rows.filter(a=>sessionValid(cmsSessions.get(a.email))),pending=rows.filter(a=>!sessionValid(cmsSessions.get(a.email)));
+ const group=(accounts,canSwitch)=>accounts.length?`<div class="remembered-login-group ${canSwitch?'is-ready':'needs-sign-in'}"><h3>${canSwitch?bilingual('已登入，可直接切換','Signed in — switch directly'):bilingual('需要登入的帳號','Accounts requiring sign-in')}</h3>${accounts.map(a=>`<button type="button" class="remembered-login-account" data-account-switch="${escapeHTML(a.email)}"><span><strong>${escapeHTML(a.name)}</strong><small>${escapeHTML(a.email)}</small></span><span>${canSwitch?bilingual('切換','Switch'):bilingual('登入此帳號','Sign in')}</span></button>`).join('')}</div>`:'';
+ return `<section class="remembered-login" aria-label="${bilingual('已記住的帳號','Remembered accounts')}"><div id="remembered-account-list">${group(ready,true)}${group(pending,false)}</div></section>`;
 }
 async function renderIntegrated(mode){
  $('.shell').classList.add('auth-hidden');$('#cms-host').hidden=false;
@@ -82,7 +84,7 @@ async function renderIntegrated(mode){
   pauseIntegrated();const version=++cmsLoading;cmsMode='cms';activeAccountEmail=account.email;
   try{
    if(!entry.host){entry.host=document.createElement('div');entry.host.dataset.accountSession=account.email;entry.host.hidden=true;$('#cms-host').append(entry.host);}
-   if(!entry.instance){const {mountCMS}=await import('./cms/app.js?v=20261111-quick-switch');if(version!==cmsLoading||state.verified!==2||activeAccountEmail!==account.email)return;
+   if(!entry.instance){const {mountCMS}=await import('./cms/app.js?v=20261111-switch-clarity');if(version!==cmsLoading||state.verified!==2||activeAccountEmail!==account.email)return;
     entry.instance=mountCMS({root:entry.host,account:{...account},locale,onLocale:setLanguage,onLogout:()=>{if(activeAccountEmail===account.email)handleAction('logout');},onActivity:()=>{if(activeAccountEmail===account.email&&state.verified===2){entry.lastActivity=Date.now();state.lastActivity=entry.lastActivity;}},getAccounts:accountState,onAccountAction:accountAction,isAuthorized:()=>state.verified===2&&activeAccountEmail===account.email&&sessionValid(entry)});
    }
    entry.host.hidden=false;entry.instance.setActive(true);entry.instance.setLocale(locale);cmsInstance=entry.instance;
@@ -91,7 +93,7 @@ async function renderIntegrated(mode){
  }
  if(cmsInstance&&cmsMode===mode){cmsInstance.setLocale(locale);return;}
  pauseIntegrated();const version=++cmsLoading;cmsMode=mode;transientHost=document.createElement('div');$('#cms-host').append(transientHost);
- try{if(mode==='phone'){const {mountPhone}=await import('./cms/phone.js?v=20261019-camera');if(version!==cmsLoading)return;cmsInstance=mountPhone({root:transientHost,locale,onExit:()=>{history.replaceState({},'',location.pathname+location.search);go(state.verified===2?'workspace':'login')},onLocale:lang=>{locale=lang;}});}else{const {mountCMS}=await import('./cms/app.js?v=20261111-quick-switch');if(version!==cmsLoading)return;cmsInstance=mountCMS({root:transientHost,account:null,publicRoute:location.hash,locale,onLocale:setLanguage,onActivity:()=>{}});}}
+ try{if(mode==='phone'){const {mountPhone}=await import('./cms/phone.js?v=20261019-camera');if(version!==cmsLoading)return;cmsInstance=mountPhone({root:transientHost,locale,onExit:()=>{history.replaceState({},'',location.pathname+location.search);go(state.verified===2?'workspace':'login')},onLocale:lang=>{locale=lang;}});}else{const {mountCMS}=await import('./cms/app.js?v=20261111-switch-clarity');if(version!==cmsLoading)return;cmsInstance=mountCMS({root:transientHost,account:null,publicRoute:location.hash,locale,onLocale:setLanguage,onActivity:()=>{}});}}
  catch(error){console.error('CMS initialization failed',error);pauseIntegrated();$('.shell').classList.remove('auth-hidden');$('#cms-host').hidden=true;go('network');}
 }
 const view=$('#view');
@@ -114,8 +116,10 @@ function render(focus=true){
   if(state.page==='workspace'&&state.verified===2&&state.account){void renderIntegrated('cms');return;}
   pauseIntegrated();$('.shell').classList.remove('auth-hidden');$('#cms-host').hidden=true;
   const p=state.page;view.className='form'+(['otp','expired'].includes(p)&&(state.error||state.message||p==='expired')?' compact':'');
-  if(p==='login'&&!state.loginForm&&rememberedAccounts().some(a=>sessionValid(cmsSessions.get(a.email))))view.innerHTML=`${progress(1)}${intro(bilingual('選擇帳號','Choose an account'),bilingual('點選已登入的帳號即可直接開啟，無需重複輸入帳密。','Select a signed-in account to continue without entering credentials again.'))}${rememberedLoginMarkup()}${action(bilingual('使用其他帳號登入','Use another account'),'account-other','secondary')}`;
-  else if(p==='login')view.innerHTML=`${progress(1)}${intro('Welcome back','Sign in to your Azure workspace.')}<form id="credentials-form" novalidate>${formError()}<div class="fields">${field('email','Work email','Enter your email address')}${field('password','Password','Enter your password',true)}</div><label class="remember-account-choice"><input type="checkbox" id="remember-account" ${state.remember?'checked':''}><span>${bilingual('在此裝置保持登入','Stay signed in on this device')}</span></label><button class="primary" id="submit" ${!credentialsReady()||state.busy?'disabled':''}>${state.busy?bilingual('確認中…','Checking…'):t('Continue')}</button></form><div class="help-row"><span>${t('Need access?')}</span>${action('Contact administrator','recovery')}</div>${rememberedLoginMarkup()}`;
+  const canQuickSwitch=rememberedAccounts().some(a=>sessionValid(cmsSessions.get(a.email))),picker=p==='login'&&!state.loginForm&&canQuickSwitch;
+  view.classList.toggle('account-picker',picker);
+  if(picker)view.innerHTML=`${intro(bilingual('快速切換帳號','Quick account switch'),bilingual('選擇已登入的帳號即可繼續使用。','Choose a signed-in account to continue.'))}${notice(bilingual('免輸入帳密，點選「切換」即可進入。','No credentials needed. Select Switch to open your workspace.'),'success')}${rememberedLoginMarkup()}${action(bilingual('新增並登入其他帳號','Add and sign in to another account'),'account-other','secondary')}`;
+  else if(p==='login')view.innerHTML=`${canQuickSwitch?action(bilingual('返回快速切換帳號','Back to quick account switch'),'account-picker','secondary account-picker-back'):''}${progress(1)}${intro(state.loginForm?bilingual(state.email?'登入此帳號':'新增帳號登入',state.email?'Sign in to this account':'Sign in to another account'):'Welcome back',state.loginForm?bilingual('此帳號需要驗證一次，記住後即可免帳密切換。','Verify this account once, then remember it for direct switching.'):'Sign in to your Azure workspace.')}<form id="credentials-form" novalidate>${formError()}<div class="fields">${field('email','Work email','Enter your email address')}${field('password','Password','Enter your password',true)}</div><label class="remember-account-choice"><input type="checkbox" id="remember-account" ${state.remember?'checked':''}><span>${bilingual('在此裝置保持登入','Stay signed in on this device')}</span></label><button class="primary" id="submit" ${!credentialsReady()||state.busy?'disabled':''}>${state.busy?bilingual('確認中…','Checking…'):t('Continue')}</button></form><div class="help-row"><span>${t('Need access?')}</span>${action('Contact administrator','recovery')}</div>${canQuickSwitch?'':rememberedLoginMarkup()}`;
   else if(p==='methods')view.innerHTML=`${progress(2)}${intro('Verify it’s you','Choose how you’d like to verify your identity.')}<div class="methods">${[['email','Email verification','Send a code to a•••@example.com','af3b7.svg'],['sms','SMS verification','Text a code to +852 •••• 4821','9f8f4.svg'],['auth','Authenticator app','Use the code in your authenticator','ed81b.svg']].map(([m,title,desc,icon])=>`<button class="method" data-method="${m}"><span class="method-icon">${asset(icon)}</span><span class="method-copy"><strong>${t(title)}</strong><span>${t(desc)}</span></span>${asset('3e4c7.svg','method-chevron')}</button>`).join('')}</div><p class="small">${t('Only methods already set up for your account are shown.')}</p><button class="text-button" data-action="login">${backIcon()}${t('Back to sign in')}</button>`;
   else if(p==='otp'||p==='expired'){
     const m=state.method,expired=p==='expired';const title=m==='email'?'Check your email':m==='sms'?'Check your phone':'Open your authenticator';const desc=m==='email'?'Enter the 6-digit code sent to\na•••@example.com.':m==='sms'?'Enter the 6-digit code sent to\n+852 •••• 4821.':'Enter the 6-digit code from your authenticator app.';
@@ -133,7 +137,7 @@ function render(focus=true){
   else if(p==='network')view.innerHTML=`${intro('We couldn’t connect','Check your connection and try again. Your account hasn’t been signed in.')}${action('Try again','retry','primary')}${action('Back to sign in','login')}`;
   else if(p==='sessionExpired')view.innerHTML=`${intro('Your session has expired','You’ve been signed out after a period of inactivity. Sign in again to continue.')}${action('Sign in again','logout','primary')}`;
   else if(p==='linkExpired')view.innerHTML=`${intro('This reset link has expired','Request a new password reset link to continue.')}${action('Request a new link','forgot','primary')}${action('Back to sign in','login')}`;
-  if(returnAccountEmail&&sessionValid(cmsSessions.get(returnAccountEmail)))view.insertAdjacentHTML('beforeend',`<button type="button" class="secondary cancel-account-login" id="cancel-account-login">${bilingual('取消並返回目前帳號','Cancel and return to your account')}</button>`);
+  if(returnAccountEmail&&sessionValid(cmsSessions.get(returnAccountEmail)))view.insertAdjacentHTML('afterbegin',`<button type="button" class="secondary cancel-account-login" id="cancel-account-login">${bilingual('返回目前帳號','Return to current account')}</button>`);
   tick();renderDemo();if(focus){view.querySelector('h2')?.focus({preventScroll:true});window.scrollTo({top:0,behavior:'instant'})}document.querySelector('.brand').classList.toggle('confirmed',state.verified===2);
 }
 function go(page,options={}){flowVersion++;state.busy=false;state.page=page;state.error=options.error||'';state.message=options.message||'';if(!options.keepDigits)state.digits=Array(6).fill('');state.lastActivity=Date.now();render();}
@@ -156,6 +160,7 @@ function tick(){
 function resetDemo(){flowVersion++;state.loginForm=false;clearAccountSessions();accountAuthFailures.clear();resetDemoPasswords();history.replaceState({},'',location.pathname+location.search);Object.assign(state,{account:null,email:'',password:'',newPassword:'',confirmPassword:'',demoPassword:DEMO_PASSWORD,attempts:0,credentialAttempts:0,lockUntil:0,verified:0,expires:0,resend:0,resetExpires:0});go('login');}
 async function handleAction(id){
   if(id==='account-other')return beginAccountLogin();
+  if(id==='account-picker'){state.loginForm=false;state.verified=0;state.account=null;state.email='';state.password='';state.newPassword='';state.confirmPassword='';return go('login');}
   if(id==='resend')return resend();
   if(id==='logout'){flowVersion++;const email=state.account?.email;state.verified=0;if(email){destroyAccount(email);await deviceSessions.forget(email,'logout');}returnAccountEmail=null;state.loginForm=false;state.account=null;state.password='';history.replaceState({},'',location.pathname+location.search);return go('login')}
   if(id==='login'){if(state.lockUntil>Date.now())return go('locked');state.verified=0;return go('login')}

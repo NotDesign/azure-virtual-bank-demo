@@ -2,3 +2,18 @@
 @media(max-width:599px){.account-switcher-dialog{width:100%;max-width:100vw}.account-switcher-head{flex-wrap:wrap;gap:10px}.account-switcher-head>.btn{width:100%}.account-switcher-row{align-items:stretch;gap:6px}.account-switcher-choice{padding:10px;gap:8px}.account-switcher-choice .avatar{width:28px;height:28px;font-size:13px}.account-switcher-copy>strong{font-size:13px}.account-switcher-copy .badge{white-space:normal}.account-switcher-remove{align-self:center;min-width:36px;width:36px;padding:6px}.remembered-login-account{gap:8px;padding:10px}.remembered-login-account>span:last-child{max-width:70px}}
 
 .account-switcher-row:has(>[data-account-remember]){flex-wrap:wrap}.account-switcher-row>[data-account-remember]{flex:1 0 100%;width:100%;min-height:44px}
+
+/* Keep direct switching visually distinct from adding an account. */
+.account-switcher-cta{display:inline-flex;align-items:center;justify-content:center;flex:none;min-height:32px;padding:5px 12px;border:1px solid var(--color-divider);border-radius:999px;font-size:12px;line-height:20px;white-space:nowrap}
+.account-switcher-cta.is-ready{background:var(--accent);border-color:var(--accent);color:#fff}
+.remembered-login-group+.remembered-login-group{margin-top:24px;padding-top:20px;border-top:1px solid #ccd6e4}
+.remembered-login-group.is-ready .remembered-login-account{border-color:#a9c3fc;background:#f5f8ff}
+.remembered-login-group.is-ready .remembered-login-account>span:last-child{background:#004beb;color:#fff;border-radius:999px;padding:6px 12px;font-weight:600}
+.remembered-login-group.needs-sign-in .remembered-login-account>span:last-child{color:#52647d}
+.account-picker .remembered-login{border:0;padding-top:0;margin-top:24px}
+.account-picker>.notice{margin-bottom:0}
+.account-picker>.secondary{margin-top:20px;width:100%}
+.account-picker-back{width:100%;margin-bottom:18px}
+.cancel-account-login{margin:0 0 18px}
+@media(max-width:599px){.account-switcher-cta{padding:5px 9px}.account-switcher-row.needs-sign-in .account-switcher-cta{white-space:normal}}
+@media(max-width:599px){.account-switcher-choice{display:grid;grid-template-columns:28px minmax(0,1fr);align-items:center}.account-switcher-choice>.avatar{grid-column:1;grid-row:1}.account-switcher-copy{grid-column:2}.account-switcher-choice>.account-switcher-cta{grid-column:1/-1;justify-self:stretch;min-height:36px}.account-switcher-copy .badge{padding:3px 7px}}
