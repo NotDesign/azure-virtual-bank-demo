@@ -56,8 +56,8 @@ export function createWizardProgress({B,F,labels}) {
   });
  }
  document.addEventListener('click',e=>{const node=e.target.closest('[data-progress-go]');if(node)go(+node.dataset.progressGo,node.dataset.progressKey,node.dataset.progressSection);});
- document.addEventListener('toggle',e=>{const node=e.target;if(node.closest?.('.wizard-fill-progress')){const key=node.dataset.progressPage?+node.dataset.progressPage:node.classList.contains('wizard-progress-detail')?'all':null;if(key!==null)opened.set(key,node.open);}},true);
+ document.addEventListener('click',e=>{const summary=e.target.closest('.wizard-fill-progress summary');if(!summary)return;const node=summary.parentElement,key=node.dataset.progressPage?+node.dataset.progressPage:node.classList.contains('wizard-progress-detail')?'all':null;if(key!==null)requestAnimationFrame(()=>opened.set(key,node.open));});
  for(const type of ['input','change'])document.addEventListener(type,e=>{if(B.state.page==='apply'&&!e.target.closest('.wizard-fill-progress')){e.target.closest('[data-progress-focus]')?.removeAttribute('data-progress-focus');refresh();}});
- window.addEventListener('resize',()=>{const panel=document.querySelector('.wizard-fill-progress');if(panel)place(panel);});
+ window.addEventListener('resize',enhance);
  return {snapshot,enhance,refresh,go};
 }

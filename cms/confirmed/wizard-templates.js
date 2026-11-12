@@ -48,7 +48,7 @@ export function createWizardTemplates({B,F,progress}) {
  function enhance(){
   if(B.state.page!=='apply')return;
   document.querySelectorAll('.wizard-template-tools').forEach(n=>n.remove());const doc=new DOMParser().parseFromString(tools(),'text/html'),node=doc.body.firstElementChild,rail=document.querySelector('.operations'),panel=document.querySelector('.wizard-fill-progress');
-  if(innerWidth>=1200&&rail)rail.append(node);else if(panel)panel.after(node);else document.querySelector('.workspace-body>.card,.public-body>.card,.page-in>.card')?.after(node);
+  if(innerWidth>=1200&&rail)rail.insertBefore(node,panel?.parentElement===rail?panel:null);else if(panel)panel.after(node);else document.querySelector('.workspace-body>.card,.public-body>.card,.page-in>.card')?.after(node);
  }
  async function excel(){if(window.ExcelJS)return window.ExcelJS;if(!excelPromise)excelPromise=new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=new URL('../../vendor/exceljs-4.4.0.min.js',import.meta.url).href;script.onload=()=>resolve(window.ExcelJS);script.onerror=()=>{excelPromise=null;script.remove();reject(new Error(T('Excel 元件未能載入，請重試。','Excel 组件未能加载，请重试。','Excel support failed to load. Try again.')));};document.head.append(script);});return excelPromise;}
  function csvRows(source){
