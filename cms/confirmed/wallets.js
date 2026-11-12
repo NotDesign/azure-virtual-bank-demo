@@ -10,7 +10,7 @@
   const editable=()=>ownId()===CID()&&!frozen();
   let pending=null,unsubscribe=null;
   const defaultPreferences=()=>({hideBalances:false,displayCurrency:'USD',tab:'wallets',filters:{scope:'selected',query:'',type:'',status:'',network:'',from:'',to:''}});
-  function blank(id){return {customerId:id,selectedId:'',preferences:defaultPreferences(),crypto:Object.keys(NETWORKS).map(network=>({id:`usdt-${id}-${network}`,customerId:id,name:`USDT · ${NETWORKS[network]}`,asset:'USDT',network,availableUnits:null,frozenUnits:null,basis:null})),ledger:[],operations:window.AzureWalletOperations.state()};}
+  function blank(id){const seed=window.AzureDemoData?.wallet(id);return {customerId:id,selectedId:'',preferences:defaultPreferences(),crypto:Object.keys(NETWORKS).map(network=>({id:`usdt-${id}-${network}`,customerId:id,name:`USDT · ${NETWORKS[network]}`,asset:'USDT',network,availableUnits:null,frozenUnits:null,basis:null})),ledger:[],operations:window.AzureWalletOperations.state(),...(seed||{})};}
   function pack(id=CID()){if(!stores.has(id))stores.set(id,blank(id));const p=stores.get(id),defaults=defaultPreferences();p.preferences={...defaults,...p.preferences,filters:{...defaults.filters,...p.preferences?.filters}};return p;}
   function validPreferences(p){
     const f=p?.filters,isDate=s=>s===''||/^\d{4}-\d{2}-\d{2}$/.test(s)&&Number.isFinite(Date.parse(s+'T00:00:00Z'))&&new Date(s+'T00:00:00Z').toISOString().slice(0,10)===s;

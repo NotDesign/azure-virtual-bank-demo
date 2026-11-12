@@ -91,13 +91,6 @@ function buildLedger() {
     else if (t.type === '跨境代付') { push(t, 'CNY', -t.amt, '跨境代付', t.cp); }
     else if (fee) push(t, 'HKD', -fee, t.type, t.cp);
   });
-  if (!window._ledgerFixed) {
-    window._ledgerFixed = true;
-    const mins = {}; out.forEach((r) => { mins[r.ccy] = Math.min(mins[r.ccy] ?? Infinity, r.bal, r.bal - (r.cr - r.dr)); });
-    let k = 0;
-    Object.entries(mins).forEach(([c, m]) => { if (m < 0) { const need = Math.ceil((-m + 30000) / 1000) * 1000; TXS.unshift({ id: 'T2610W0' + (++k), date: TODAY, time: `${TODAY} 11:0${k}:00`, cust: C, type: '提现', prod: 'PAYOUT_HK', ccy: c, amt: need, cp: 'HSBC Hong Kong（本人账户）', status: '成功', ch: 'ALLINPAY_HK' }); } });
-    if (k) return buildLedger();
-  }
   const opening = {}; [...new Set(out.map((r) => r.ccy))].forEach((c) => { const rs = out.filter((r) => r.ccy === c); const last = rs[rs.length - 1]; opening[c] = last.bal - (last.cr - last.dr); });
   Object.entries(BALANCES[C]).forEach(([c, b]) => { if (!(c in opening)) opening[c] = b.a + b.f; });
   Object.entries(opening).forEach(([c, v]) => { if (v > 0.005) out.push({ time: '2026-09-01 00:00:00', ref: 'OPEN-' + c, acct: acctNo(c), ccy: c, cr: 0, dr: 0, bal: v, type: '期初余额', note: '上期结转' }); });

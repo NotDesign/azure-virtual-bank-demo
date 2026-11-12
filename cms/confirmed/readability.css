@@ -1,0 +1,64 @@
+/* HIG / Material-informed web density: hierarchy, contrast and consistent targets. */
+:root,html[data-theme],html[data-portal]{--color-text-faint:#596b84;--color-on-accent:#fff}
+html[data-theme='dark']{--color-text-faint:#adc0da;--color-on-accent:#101f3c;--color-sidebar-active:#101f3c;--accent:#8daeff;--accent-hover:#aac3ff}
+body{line-height:1.6}
+.page-title{font-size:28px;line-height:1.4;letter-spacing:0}
+.page-desc{font-size:var(--text-sm);line-height:1.6;margin-top:8px;max-width:80ch}
+.card-title{font-size:20px;line-height:1.4;font-weight:650}
+.card-sub,.field label{font-size:var(--text-sm);line-height:1.6}
+.field label{color:var(--color-text);font-weight:600;margin-bottom:8px}
+.input,.select{font-size:var(--text-base);line-height:1.5;min-height:44px}
+.btn{min-height:44px;font-size:var(--text-sm);line-height:1.5}
+.btn.sm{min-height:40px;font-size:var(--text-sm)}
+.btn.primary,.account-switcher-cta.is-ready{color:var(--color-on-accent)}
+.kpi-label{font-size:var(--text-sm);line-height:1.6;min-height:2.8em;color:var(--color-text-muted)}
+.kpi-value{font-size:clamp(28px,2.1vw,36px);line-height:1.3;font-variant-numeric:tabular-nums}
+.kpi-value.contact-value{font-size:var(--text-base);line-height:1.5;overflow-wrap:anywhere}
+table{font-size:var(--text-sm);line-height:1.6}
+th{font-size:var(--text-sm);font-weight:600;color:var(--color-text-muted)}
+td{padding-top:16px;padding-bottom:16px}
+.num,.mono,td.r,th.r{font-variant-numeric:tabular-nums lining-nums}
+.badge{font-size:var(--text-xs);line-height:1.5;padding:4px 9px;font-weight:500}
+.small,.muted,small{line-height:1.6}
+.note{line-height:1.7}
+.crossborder-destination{margin-bottom:20px}
+.crossborder-destination .field{width:min(100%,400px);margin:0}
+.tree.review-agent-tree ul{border:0;margin:0;padding:0;list-style:none}
+.review-agent-tree>li>ul>li{padding:12px;background:var(--color-surface-2);border-radius:16px;margin-bottom:16px}
+.review-agent-tree>li>ul>li>ul{margin-top:12px;padding-left:20px;display:grid;gap:8px}
+.review-agent-tree .review-agent-node{margin:0;padding:12px;background:var(--color-surface);border:1px solid var(--color-divider)}
+.review-agent-tree .review-agent-node.on{background:var(--accent-soft);border-color:var(--accent)}
+.review-agent-context>.review-agent-node{border-style:solid}
+.review-agent-name{font-size:var(--text-sm);line-height:1.6}
+.review-agent-name small,.review-agent-count{font-size:var(--text-xs)}
+.review-agent-context>.review-agent-node .review-agent-name{opacity:1}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+@media(max-width:599px){.page-title{font-size:26px}.card-title{font-size:19px}.btn,.icon-btn{min-height:44px}.icon-btn{min-width:44px}.review-agent-tree>li>ul>li{padding:10px}.review-agent-tree>li>ul>li>ul{padding-left:12px}.kpi-value{font-size:30px}}
+
+.chip.on,.seg button.on{background:var(--accent);color:var(--color-on-accent)}
+
+.wallet{background:#244263;color:#fff;box-shadow:none}
+.wallet:after{display:none}
+.wallet .sub{color:#fff;opacity:1}
+.w-HKD{background:linear-gradient(135deg,#a82b46,#82223a)}
+.w-USD{background:linear-gradient(135deg,#1d5bbb,#173d88)}
+.w-CNH{background:linear-gradient(135deg,#136b59,#104b42)}
+.w-EUR{background:linear-gradient(135deg,#68429f,#4b2a82)}
+.w-CNY{background:linear-gradient(135deg,#885520,#644117)}
+
+@media(min-width:1200px){.grid.g5{grid-template-columns:repeat(5,minmax(0,1fr))}.grid.g5>.kpi{padding:20px}}
+@media(prefers-reduced-motion:reduce){.page-in,.modal-bg,.modal{animation:none}}
+@media(max-width:599px){
+ .header{flex-wrap:nowrap;align-items:center}
+ .header-controls{flex-wrap:nowrap;flex:none;align-items:center}
+ .header-left{flex:none}
+ .header .icon-btn{width:44px;height:44px;min-width:44px}
+ .page-head{flex-direction:column;align-items:stretch;gap:16px}
+ .page-head>.btn-row{justify-content:flex-start}
+ .page-head>.btn-row:empty{display:none}
+}
+@media(max-width:359px){
+ .header-left .mobile-logo{width:40px;height:40px;aspect-ratio:1;overflow:hidden;flex:none;border-radius:50%;background:transparent}
+ .header-left .mobile-logo>img{width:auto!important;max-width:none!important;height:40px!important;object-fit:contain;object-position:left center}
+ .header-left .mobile-logo>.azure-logo-dark-overlay{display:none}
+}

@@ -28,14 +28,14 @@
     window.CUSTOMERS=[clone(context.customer)];window.ACCOUNTS=clone(context.accounts||[]);window.TXS=clone(context.txs||[]);
     window.CUST_PRICE={[childCustomer]:clone(context.price)};window.FLOORS=clone(context.floors);
     window.BALANCES=context.balance?{[childCustomer]:clone(context.balance)}:{};
-    for (const key of ['CPS','WITHDRAW_ACCTS','FROZEN','HELD_RETURNS','BATCHES','FX_ORDERS']) window[key]=clone(context.extra?.[key]||[]);
+    for (const key of ['CPS','WITHDRAW_ACCTS','FROZEN','HELD_RETURNS','BATCHES','FX_ORDERS','DOC_REQS']) window[key]=clone(context.extra?.[key]||[]);
     window.VA_INFO=clone(context.extra?.VA_INFO||{});window.USERS={[childCustomer]:clone(context.extra?.users||[])};
     if(context.wallets)window.AzureWallets?.restore(childCustomer,context.wallets,context.token);
     for(const key of ['TXS','CPS','BATCHES','FX_ORDERS'])seen[key]=new Set(window[key].map(r=>r.id));
     Object.assign(S,clone(context.drafts||{}));
     if(context.lastPage===context.page) S.ui=clone(context.ui||{});
     window.AzureAdminChild={get customerId(){return childCustomer;},snapshot(){
-      const extra=Object.fromEntries(['CPS','WITHDRAW_ACCTS','FROZEN','HELD_RETURNS','BATCHES','FX_ORDERS'].map(k=>[k,clone(window[k])]));extra.VA_INFO=clone(VA_INFO);extra.users=clone(USERS[CID()]||[]);
+      const extra=Object.fromEntries(['CPS','WITHDRAW_ACCTS','FROZEN','HELD_RETURNS','BATCHES','FX_ORDERS','DOC_REQS'].map(k=>[k,clone(window[k])]));extra.VA_INFO=clone(VA_INFO);extra.users=clone(USERS[CID()]||[]);
       const drafts=Object.fromEntries(['pay','fx','wd','xb'].filter(k=>S[k]).map(k=>[k,clone(S[k])]));
       return {customerId:childCustomer,accounts:clone(myAccts()),txs:clone(TXS.filter(t=>t.cust===CID())),balance:clone(BALANCES[CID()]),wallets:window.AzureWallets?.snapshot(),extra,drafts,ui:clone(S.ui),lastPage:S.page};
     }};
@@ -59,6 +59,7 @@
       cache.set(frameCustomer,clone(state));
       if(state.wallets)window.AzureWallets?.restore(frameCustomer,state.wallets);
       if(state.balance) BALANCES[frameCustomer]=clone(state.balance);
+      if(state.extra?.DOC_REQS){const other=DOC_REQS.filter(r=>r.tt!=='c'||r.target!==frameCustomer),own=state.extra.DOC_REQS.filter(r=>r.tt==='c'&&r.target===frameCustomer);DOC_REQS.splice(0,DOC_REQS.length,...other,...clone(own));}
       const accountIndex=ACCOUNTS.findIndex(a=>a.cust===frameCustomer), accounts=ACCOUNTS.filter(a=>a.cust!==frameCustomer);
       accounts.splice(accountIndex<0?accounts.length:accountIndex,0,...clone(state.accounts));ACCOUNTS.splice(0,ACCOUNTS.length,...accounts);
       const existingIds=new Set(TXS.map(t=>t.id)), changed=new Map(state.txs.map(t=>[t.id,clone(t)]));
@@ -69,8 +70,9 @@
   }
   function payload(id,page) {
     const c=cust(id), saved=cache.get(id), sample=id==='AZ100001';
-    const extra=saved?.extra || (sample?Object.fromEntries(['CPS','WITHDRAW_ACCTS','FROZEN','HELD_RETURNS','BATCHES','FX_ORDERS','VA_INFO'].map(k=>[k,clone(window[k])])):{});
+    const extra=saved?.extra || window.AzureDemoData?.customer(id) || (sample?Object.fromEntries(['CPS','WITHDRAW_ACCTS','FROZEN','HELD_RETURNS','BATCHES','FX_ORDERS','VA_INFO'].map(k=>[k,clone(window[k])])):{});
     extra.users=saved?.extra?.users || clone(USERS[id]||[]);
+    extra.DOC_REQS=clone(DOC_REQS.filter(r=>r.tt==='c'&&r.target===id));
     return {customer:clone(c),accounts:clone(ACCOUNTS.filter(a=>a.cust===id)),txs:clone(TXS.filter(t=>t.cust===id)),price:clone(CUST_PRICE[id]),floors:clone(FLOORS),balance:clone(BALANCES[id]),wallets:clone(saved?.wallets||window.AzureWallets?.snapshot(id)),extra:clone(extra),drafts:clone(saved?.drafts||{}),ui:clone(saved?.ui||{}),lastPage:saved?.lastPage,page,token:channel};
   }
   function sendSession() {
@@ -83,7 +85,7 @@
     const host=document.getElementById('admin-customer-host');if(!host)return;
     channel=crypto.randomUUID();frameCustomer=customerId;
     frame=document.createElement('iframe');frame.className='admin-customer-frame';frame.title=copy('全權管理 · 客戶 eBanking','全权管理 · 客户 eBanking','Administrator · Customer eBanking');frame.allow='camera';frame.dataset.adminChannel=channel;
-    frame.src='index.html?v='+encodeURIComponent(new URL(location.href).searchParams.get('v')||'20261111-switch-clarity')+'&locale='+encodeURIComponent(I18N.lang)+'#/cust/'+page;frame.addEventListener('load',sendSession);host.replaceChildren(frame);
+    frame.src='index.html?v='+encodeURIComponent(new URL(location.href).searchParams.get('v')||'20261112-system-review')+'&locale='+encodeURIComponent(I18N.lang)+'#/cust/'+page;frame.addEventListener('load',sendSession);host.replaceChildren(frame);
   }
   window.adminSelectCustomer = id => {
     if(!fullAdmin() || !getCustomers().some(c=>c.id===id))return;

@@ -38,4 +38,6 @@
   if(event.shiftKey&&(document.activeElement===first||!dialog.contains(document.activeElement))){event.preventDefault();last.focus();}else if(!event.shiftKey&&(document.activeElement===last||!dialog.contains(document.activeElement))){event.preventDefault();first.focus();}
  });
  window.AzureAccountSwitcher={ready:true,request:()=>send('azure-accounts-request')};
+ send('azure-accounts-request');
+ if(document.querySelector('[data-account-switcher-pending]'))accountPanel();
 })();

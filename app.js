@@ -1,4 +1,4 @@
-import {RememberedSessions} from './remembered-sessions.js?v=20261111-switch-clarity';
+import {RememberedSessions} from './remembered-sessions.js?v=20261112-system-review';
 import {zh,en} from './copy.js';
 import {zhCN,toSimplified} from './simplified.js';
 import {DEMO_ACCOUNTS,DEMO_PASSWORD,authenticate,findAccount,currentDemoPassword,resetPassword,resetDemoPasswords} from './demo-accounts.js';
@@ -84,7 +84,7 @@ async function renderIntegrated(mode){
   pauseIntegrated();const version=++cmsLoading;cmsMode='cms';activeAccountEmail=account.email;
   try{
    if(!entry.host){entry.host=document.createElement('div');entry.host.dataset.accountSession=account.email;entry.host.hidden=true;$('#cms-host').append(entry.host);}
-   if(!entry.instance){const {mountCMS}=await import('./cms/app.js?v=20261111-switch-clarity');if(version!==cmsLoading||state.verified!==2||activeAccountEmail!==account.email)return;
+   if(!entry.instance){const {mountCMS}=await import('./cms/app.js?v=20261112-system-review');if(version!==cmsLoading||state.verified!==2||activeAccountEmail!==account.email)return;
     entry.instance=mountCMS({root:entry.host,account:{...account},locale,onLocale:setLanguage,onLogout:()=>{if(activeAccountEmail===account.email)handleAction('logout');},onActivity:()=>{if(activeAccountEmail===account.email&&state.verified===2){entry.lastActivity=Date.now();state.lastActivity=entry.lastActivity;}},getAccounts:accountState,onAccountAction:accountAction,isAuthorized:()=>state.verified===2&&activeAccountEmail===account.email&&sessionValid(entry)});
    }
    entry.host.hidden=false;entry.instance.setActive(true);entry.instance.setLocale(locale);cmsInstance=entry.instance;
@@ -93,7 +93,7 @@ async function renderIntegrated(mode){
  }
  if(cmsInstance&&cmsMode===mode){cmsInstance.setLocale(locale);return;}
  pauseIntegrated();const version=++cmsLoading;cmsMode=mode;transientHost=document.createElement('div');$('#cms-host').append(transientHost);
- try{if(mode==='phone'){const {mountPhone}=await import('./cms/phone.js?v=20261019-camera');if(version!==cmsLoading)return;cmsInstance=mountPhone({root:transientHost,locale,onExit:()=>{history.replaceState({},'',location.pathname+location.search);go(state.verified===2?'workspace':'login')},onLocale:lang=>{locale=lang;}});}else{const {mountCMS}=await import('./cms/app.js?v=20261111-switch-clarity');if(version!==cmsLoading)return;cmsInstance=mountCMS({root:transientHost,account:null,publicRoute:location.hash,locale,onLocale:setLanguage,onActivity:()=>{}});}}
+ try{if(mode==='phone'){const {mountPhone}=await import('./cms/phone.js?v=20261019-camera');if(version!==cmsLoading)return;cmsInstance=mountPhone({root:transientHost,locale,onExit:()=>{history.replaceState({},'',location.pathname+location.search);go(state.verified===2?'workspace':'login')},onLocale:lang=>{locale=lang;}});}else{const {mountCMS}=await import('./cms/app.js?v=20261112-system-review');if(version!==cmsLoading)return;cmsInstance=mountCMS({root:transientHost,account:null,publicRoute:location.hash,locale,onLocale:setLanguage,onActivity:()=>{}});}}
  catch(error){console.error('CMS initialization failed',error);pauseIntegrated();$('.shell').classList.remove('auth-hidden');$('#cms-host').hidden=true;go('network');}
 }
 const view=$('#view');

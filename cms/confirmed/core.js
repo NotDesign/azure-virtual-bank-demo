@@ -95,7 +95,17 @@ function head(title, desc = '', actions = '', crumb = '') { return `<div class="
 function tabs(key, list, cur) { return `<div class="tabs">${list.map(([k, l]) => `<button class="${k === cur ? 'on' : ''}" onclick="setUI('${key}','${k}')">${l}</button>`).join('')}</div>`; }
 function setUI(k, v) { S.ui[k] = v; render(); }
 function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
-function chart(id, cfg) { const el = document.getElementById(id); if (!el || !window.Chart) return; S.charts.push(new Chart(el, cfg)); }
+function chart(id,cfg){
+ const el=document.getElementById(id);if(!el||!window.Chart)return;
+ const text=cssVar('--color-text-muted'),grid=cssVar('--color-divider'),font={family:getComputedStyle(document.body).fontFamily,size:14};
+ cfg.options||={};cfg.options.maintainAspectRatio=false;cfg.options.plugins||={};
+ const legend=cfg.options.plugins.legend||={};legend.labels={...legend.labels,color:text,font,usePointStyle:true,pointStyle:'circle',boxWidth:8,padding:16};
+ cfg.options.plugins.tooltip={...cfg.options.plugins.tooltip,bodyFont:font,titleFont:{...font,weight:600},padding:12,cornerRadius:8};
+ for(const [key,axis]of Object.entries(cfg.options.scales||{})){axis.ticks={...axis.ticks,color:text,font,padding:8};axis.border={display:false};axis.grid={...axis.grid,color:grid,drawTicks:false};}
+ for(const dataset of cfg.data.datasets){if((dataset.type||cfg.type)==='bar'){dataset.borderRadius=0;dataset.borderSkipped=false;dataset.maxBarThickness=48;}if((dataset.type||cfg.type)==='line')dataset.tension=0;}
+ if(matchMedia('(prefers-reduced-motion:reduce)').matches)cfg.options.animation=false;
+ S.charts.push(new Chart(el,cfg));
+}
 function note(html, cls = '') { return `<div class="note ${cls}">${ICON.info}<div>${html}</div></div>`; }
 
 const ICON = {
@@ -226,9 +236,17 @@ function render() {
   const fn = PAGES[S.portal + ':' + S.page] || PAGES['*:' + S.page];
   const html = fn ? fn() : `<div class="empty">页面不存在</div>`;
   const keepScroll = $('#main') ? $('#main').scrollTop : 0;
+  const sideScroll = $('.sidebar')?.scrollTop || 0, navScroll = $('.sidebar>.nav')?.scrollTop || 0;
   root.innerHTML = shell(html);
   if (S._samePage) $('#main').scrollTop = keepScroll;
+  if ($('.sidebar')) $('.sidebar').scrollTop = sideScroll;
+  if ($('.sidebar>.nav')) $('.sidebar>.nav').scrollTop = navScroll;
   afterRender();
+}
+function renderPageRegion(){
+ const page=document.querySelector('.page-in'),fn=PAGES[S.portal+':'+S.page]||PAGES['*:'+S.page];if(!page||!fn)return render();
+ const main=document.getElementById('main'),scroll=main?.scrollTop||0;
+ S.charts.forEach(c=>c.destroy());S.charts=[];page.innerHTML=fn();afterRender();if(main)main.scrollTop=scroll;
 }
 const AFTER = [];
 function afterRender() { while (AFTER.length) { try { AFTER.shift()(); } catch (e) { console.error(e); } } }

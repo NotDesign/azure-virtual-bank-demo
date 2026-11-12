@@ -150,3 +150,12 @@ All new financial calculations use integer minor units with BigInt conversion in
 Focused checks: `verify-wallet-operations.mjs`, `verify-wallet-address-book.mjs`, `verify-wallet-exchange.mjs`, `verify-wallet-batch.mjs`, `verify-wallet-workflows.mjs` and `verify-wallet-motion.mjs`.
 
 The account picker explicitly labels verified accounts as direct switches, shows a Switch action, and keeps adding or re-authenticating an account in a separate credential view. The reload picker omits sign-in verification steps, with a visible return path from the credential view. Document recognition status uses a responsive 12 px gap between the label and progress bar.
+
+## 2026-11-12 usability and complete Demo fixtures
+
+- The initial account-menu click waits for the picker and completes the same click after loading; it does not expose the old profile-only dialog. Sidebar scroll survives menu navigation.
+- Dashboard period changes replace the main data region; FX day changes update the existing chart instance. Neither restarts the surrounding page. Period tabs and their date picker are grouped together without an extra visible heading or Demo explanation.
+- Shared chart typography, bar geometry, readable light/dark colors, action targets and agent grouping are reviewed against Apple HIG typography/accessibility and Material 3 typography/list guidance. The volume chart fills its parent card, and currency cards omit decorative logos.
+- Every existing customer has its own fictional balances, bank accounts, team, counterparties, FX orders, wallet opening balances, address book, conversion history and a partially settled batch. Fiat and USDT fixtures preserve customer scope. Statement reads are pure; any balancing Demo treasury settlements are explicit seed transactions.
+- The cross-border Demo offers China, Hong Kong, Singapore, USA, UK, Japan and Germany. Mainland China retains its RMB declaration flow; other destinations use their own approved Demo recipient and currency. This does not establish production channel coverage.
+- References: https://developer.apple.com/design/human-interface-guidelines/typography and https://developer.apple.com/design/human-interface-guidelines/accessibility ; https://m3.material.io/styles/typography/applying-type and https://m3.material.io/components/lists/overview .

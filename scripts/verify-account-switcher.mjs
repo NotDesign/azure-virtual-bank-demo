@@ -50,8 +50,8 @@ try{
  await page.evaluate(email=>{const source=document.querySelector('#cms-host>[data-account-session]:not([hidden]) iframe').contentWindow;dispatchEvent(new MessageEvent('message',{origin:'https://untrusted.example',source,data:{type:'azure-account-switch',email}}));},emails.cust);await page.waitForTimeout(100);check('A mismatched message origin cannot request an account switch',await hq.evaluate(()=>AzureBridge.account.role)==='hq');
  await hq.evaluate(()=>adminOpenCustomer('AZ100002','wallets'));await hq.waitForFunction(()=>document.querySelector('.admin-customer-frame')?.contentWindow?.AzureAdminChild?.customerId==='AZ100002'&&document.querySelector('.admin-customer-frame').contentWindow.AzureWallets);
  let child=await(await hq.locator('.admin-customer-frame').elementHandle()).contentFrame();
- const scope=await child.evaluate(id=>({customer:CID(),foreign:AzureWallets.funding.get(id),rows:AzureWallets.funding.records().length}),fixture.recordId);
- check('The other login does not inherit the original account wallet records',scope.customer==='AZ100002'&&scope.foreign===null&&scope.rows===0,scope);
+ const scope=await child.evaluate(id=>({customer:CID(),foreign:AzureWallets.funding.get(id),rows:AzureWallets.funding.records().map(r=>({id:r.id,customerId:r.customerId}))}),fixture.recordId);
+ check('The other login does not inherit the original account wallet records',scope.customer==='AZ100002'&&scope.foreign===null&&scope.rows.length>0&&scope.rows.every(r=>r.customerId===scope.customer&&r.id!==fixture.recordId),scope);
  // A nested customer frame has the same origin but is not the active main CMS frame.
  await child.evaluate(email=>top.postMessage({type:'azure-account-switch',email},location.origin),emails.cust);await page.waitForTimeout(100);
  check('A delegated customer iframe cannot forge a main-account switch',await hq.evaluate(()=>AzureBridge.account.role)==='hq'&&await page.locator('#cms-host>[data-account-session]:not([hidden])').count()===1);

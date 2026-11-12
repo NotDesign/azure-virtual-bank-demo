@@ -18,14 +18,14 @@
     else if(mode==='month')({from,to}=monthRange(MONTH));
     else if(mode==='previous'){const d=new Date(anchor+'T00:00:00Z');d.setUTCMonth(d.getUTCMonth()-1,1);({from,to}=monthRange(d.toISOString().slice(0,7)));}
     else return false;
-    S.ui.chartPeriods={...(S.ui.chartPeriods||{}),[key]:{mode,from,to}};render();return true;
+    S.ui.chartPeriods={...(S.ui.chartPeriods||{}),[key]:{mode,from,to}};renderPageRegion();return true;
   }
   const API=window.AzureChartPeriods={ready:true,text:T,get,change,includes:(key,value)=>{const r=get(key);return valid(value)&&value>=r.from&&value<=r.to;}};
   function enhance(){
     if(!['hq','l1','l2'].includes(S.portal)||!['dashboard','revenue'].includes(S.page))return;
     const key=S.page,head=document.querySelector('.page-in>.page-head');if(!head||head.parentElement.querySelector('.chart-period-toolbar'))return;
     const range=get(key),toolbar=document.createElement('section');toolbar.className='card chart-period-toolbar';toolbar.setAttribute('aria-label',T('資料期間','数据期间','Data period'));
-    toolbar.innerHTML=`<div class="chart-period-options"><strong>${T('資料期間','数据期间','Data period')}</strong><div class="btn-row">${[['month',T('本月','本月','This month')],['previous',T('上月','上月','Previous month')],...['7','30','90'].map(n=>[n,T(`近 ${n} 天`,`近 ${n} 天`,`${n} days`)])].map(([mode,name])=>`<button class="btn sm ${range.mode===mode?'primary':''}" type="button" data-chart-period="${mode}" aria-pressed="${range.mode===mode}">${name}</button>`).join('')}</div></div><div class="chart-period-range">${AzureDateRange.register('chart-'+key,{...range,anchor,title:T('圖表日期範圍','图表日期范围','Chart date range'),hint:T(`Demo 資料截至 ${anchor}；不會補造歷史交易。`,`Demo 数据截至 ${anchor}；不会补造历史交易。`,`Demo records through ${anchor}. Historical transactions are not fabricated.`),onApply:(from,to)=>change(key,'custom',from,to)})}</div><p class="small muted">${T(`Demo 資料截至 ${anchor}；統計、圖表及產品明細採用相同期間。`,`Demo 数据截至 ${anchor}；统计、图表及产品明细使用相同期间。`,`Demo records through ${anchor}. Metrics, charts and product details use the same period.`)}</p>`;
+    toolbar.innerHTML=`<div class="chart-period-options"><div class="btn-row">${[['month',T('本月','本月','This month')],['previous',T('上月','上月','Previous month')],...['7','30','90'].map(n=>[n,T(`近 ${n} 天`,`近 ${n} 天`,`${n} days`)])].map(([mode,name])=>`<button class="btn sm ${range.mode===mode?'primary':''}" type="button" data-chart-period="${mode}" aria-pressed="${range.mode===mode}">${name}</button>`).join('')}</div></div><div class="chart-period-range">${AzureDateRange.register('chart-'+key,{...range,anchor,title:T('圖表日期範圍','图表日期范围','Chart date range'),onApply:(from,to)=>change(key,'custom',from,to)})}</div>`;
     toolbar.querySelectorAll('[data-chart-period]').forEach(button=>button.addEventListener('click',()=>change(key,button.dataset.chartPeriod)));head.after(toolbar);
   }
   const oldAfter=afterRender;afterRender=function(...args){const result=oldAfter(...args);enhance();return result;};

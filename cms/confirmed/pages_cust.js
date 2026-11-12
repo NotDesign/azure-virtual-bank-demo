@@ -55,7 +55,7 @@ PAGES['cust:home'] = () => {
       <div class="prod-tile" onclick="go('cust','accounts')"><span class="ios-ic lg" style="background:#0071e3">${NAVICON.accounts}</span><div class="small muted">账户管理</div><div class="t">${myAccts().length} 个账户</div><div class="v">${Object.keys(bal()).length} 个币种</div></div>
       <div class="prod-tile" onclick="go('cust','pay')"><span class="ios-ic lg" style="background:#34c759">${NAVICON.pay}</span><div class="small muted">全球收付款</div><div class="t">${CPS.filter((c) => c.dir === '收款方' && c.status === '正常').length} 个可用收款方</div><div class="v">单笔 · 批量</div></div>
       <div class="prod-tile" onclick="go('cust','fx')"><span class="ios-ic lg" style="background:#ff9f0a">${NAVICON.fx}</span><div class="small muted">汇兑中心</div><div class="t">USD → HKD</div><div class="v">${nf(FXR.USD / FXR.HKD * (1 - CUST_PRICE[CID()].FX / 10000), 4)}</div></div>
-      <div class="prod-tile" onclick="go('cust','xborder')"><span class="ios-ic lg" style="background:#ff3b30">${NAVICON.xborder}</span><div class="small muted">跨境付款（到中国）</div><div class="t">结汇 · 代付</div><div class="v">CNY ${nf(bal().CNY.a, 0)}</div></div>
+      <div class="prod-tile" onclick="go('cust','xborder')"><span class="ios-ic lg" style="background:#ff3b30">${NAVICON.xborder}</span><div class="small muted">跨境付款</div><div class="t">结汇 · 代付</div><div class="v">CNY ${nf(bal().CNY.a, 0)}</div></div>
     </div>
     <div class="card mt"><div class="card-head"><h3 class="card-title">最近交易</h3><a class="link" href="#/cust/txs">全部 ›</a></div>${custTxList(recent)}</div>`;
 };
@@ -73,7 +73,7 @@ PAGES['cust:accounts'] = () => {
   const t = S.ui.at || 'mine';
   let body = '';
   if (t === 'mine') {
-    body = `<div class="card-pad"><div class="acct-cards">${Object.entries(bal()).map(([c, b]) => `<div class="ccy-card wallet w-${c}"><div class="ccy"><span class="wc">${c}${c === 'CNY' ? ' · 跨境' : ''}</span><img src="./assets/azure-mark.png" alt="" class="wm"></div><div class="amt">${nf(b.a)}</div><div class="sub">可用 · 冻结 ${nf(b.f)}</div></div>`).join('')}</div></div>
+    body = `<div class="card-pad"><div class="acct-cards">${Object.entries(bal()).map(([c, b]) => `<div class="ccy-card wallet w-${c}"><div class="ccy"><span class="wc">${c}${c === 'CNY' ? ' · 跨境' : ''}</span></div><div class="amt">${nf(b.a)}</div><div class="sub">可用 · 冻结 ${nf(b.f)}</div></div>`).join('')}</div></div>
       <div class="tbl-wrap"><table><thead><tr><th>账户昵称</th><th>币种</th><th>开户银行</th><th>账户号（银行分配）</th><th>贸易背景</th><th class="r">可用余额</th><th>状态</th><th class="r">操作</th></tr></thead><tbody>${myAccts().map((a, i) => `<tr><td class="bold">${a.nick}</td><td>${flag(a.ccy)}${a.ccy}</td><td>${a.bank}</td><td class="mono">${a.no}</td><td>${a.bg}</td><td class="r num">${nf((bal()[a.ccy] || { a: 0 }).a)}</td><td>${statusBadge(a.status)}</td><td class="r nowrap"><button class="link" onclick="acctDetail(${i})">详情</button>${a.status === '正常' && !a.xb ? ` · <button class="link" onclick="acctConfirm(${i})">账户证明</button>` : ''}${a.status === '正常' && !a.xb ? ` · <a class="link" href="#/cust/pay" onclick="S.nextUI={pt:'wd'}">提现</a>` : ''}</td></tr>`).join('')}</tbody></table></div>`;
   } else if (t === 'ledger') {
     let L = buildLedger();
@@ -167,12 +167,19 @@ function balanceCert() {
 }
 
 // ---------- 汇兑中心 ----------
+function fxChartPoints(range,mid){let seed=7;const rnd=()=>((seed=(seed*9301+49297)%233280)/233280),points=Array.from({length:Number(range)*4+1},(_,i)=>mid*(1+(rnd()-.5)*.004+Math.sin(i/5)*.0015));points[points.length-1]=mid;return points;}
+function setFXChartRange(range){
+ if(!['1','7','15','30'].includes(range)||S.portal!=='cust'||S.page!=='fx'||!S.fx)return;
+ const instance=Chart.getChart(document.getElementById('fxc'));if(!instance)return;
+ S.fx.range=range;const points=fxChartPoints(range,FXR[S.fx.sell]/FXR[S.fx.buy]);
+ instance.data.labels=points.map((_,i)=>i);instance.data.datasets[0].data=points;instance.update('none');
+ document.querySelectorAll('[data-fx-chart-range]').forEach(button=>{const selected=button.dataset.fxChartRange===range;button.classList.toggle('on',selected);button.setAttribute('aria-pressed',String(selected));});
+}
 PAGES['cust:fx'] = () => {
   const f = (S.fx ||= { sell: 'USD', buy: 'HKD', amt: 10000, range: '7', lock: 'S' });
   const mk = CUST_PRICE[CID()].FX, mid = FXR[f.sell] / FXR[f.buy], rate = mid * (1 - mk / 10000);
   const sellAmt = f.lock === 'S' ? f.amt : f.amt / rate, out = f.lock === 'S' ? f.amt * rate : f.amt;
-  const days = +f.range; let s = 7; const rnd = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
-  const pts = Array.from({ length: days * 4 + 1 }, (_, i) => mid * (1 + (rnd() - 0.5) * 0.004 + Math.sin(i / 5) * 0.0015)); pts[pts.length - 1] = mid;
+  const pts = fxChartPoints(f.range,mid);
   AFTER.push(() => {
     const acc = cssVar('--accent'), txt = cssVar('--color-text-muted'), grid = cssVar('--color-divider');
     chart('fxc', { type: 'line', data: { labels: pts.map((_, i) => i), datasets: [{ data: pts, borderColor: acc, backgroundColor: acc + '22', fill: true, pointRadius: 0, tension: 0, borderWidth: 2 }] },
@@ -197,7 +204,7 @@ PAGES['cust:fx'] = () => {
       <div class="field"><label>备注（选填）</label><input class="input" id="fxRemark" value="${esc(f.remark||'')}" oninput="S.fx.remark=this.value" placeholder="例：9 月货款结汇"></div>
       <button class="btn primary" style="justify-content:center" ${sellAmt <= 0 || sellAmt > avail ? 'disabled' : ''} onclick="fxConfirm()">确认兑换</button>${sellAmt > avail ? '<div class="small down">余额不足</div>' : ''}
     </div>
-    <div class="card"><div class="card-head"><h3 class="card-title">${f.sell}/${f.buy} 走势</h3><div class="chip-row">${[['1', '1天'], ['7', '7天'], ['15', '15天'], ['30', '30天']].map(([k, l]) => `<button class="chip ${k === f.range ? 'on' : ''}" onclick="S.fx.range='${k}';render()">${l}</button>`).join('')}</div></div><div class="small muted" style="padding:0 24px">实时汇率 1.00 ${f.sell} = ${nf(mid, 6)} ${f.buy} · 更新于 ${TODAY} 15:20</div><div class="chart-box" style="height:300px"><canvas id="fxc"></canvas></div></div></div>
+    <div class="card"><div class="card-head"><h3 class="card-title">${f.sell}/${f.buy} 走势</h3><div class="chip-row">${[['1', '1天'], ['7', '7天'], ['15', '15天'], ['30', '30天']].map(([k, l]) => `<button class="chip ${k === f.range ? 'on' : ''}" type="button" data-fx-chart-range="${k}" aria-pressed="${k === f.range}" onclick="setFXChartRange('${k}')">${l}</button>`).join('')}</div></div><div class="small muted" style="padding:0 24px">实时汇率 1.00 ${f.sell} = ${nf(mid, 6)} ${f.buy} · 更新于 ${TODAY} 15:20</div><div class="chart-box" style="height:300px"><canvas id="fxc"></canvas></div></div></div>
     <div class="card mt" id="fxOrders"><div class="card-head"><h3 class="card-title">换汇交易明细</h3><span class="card-sub">${O.length} 笔</span></div>
       <div class="toolbar wrap">${searchBox('fq', '搜索换汇单号')}${selectBox('fs', '状态', ['已交割', '处理中', '已取消'])}${dateRange('ff', 'fto')}<div style="flex:1"></div><button class="btn sm" onclick="exportFx()">${ICON.dl} 导出</button></div>
       <div class="tbl-wrap"><table><thead><tr><th>创建时间</th><th>换汇单号</th><th>卖出账户</th><th>卖出币种</th><th class="r">卖出金额</th><th>买入账户</th><th>买入币种</th><th class="r">买入金额</th><th class="r">成交汇率</th><th>备注</th><th>状态</th><th class="r">操作</th></tr></thead><tbody>${O.map((o) => `<tr><td class="nowrap">${o.time}</td><td class="mono nowrap">${o.id} <button class="icon-mini" title="复制" onclick="navigator.clipboard&&navigator.clipboard.writeText('${o.id}');toast('已复制单号')">⧉</button></td><td>${acctName(o.sell)}</td><td>${flag(o.sell)}${o.sell}</td><td class="r num">${nf(o.sellAmt)}</td><td>${acctName(o.buy)}</td><td>${flag(o.buy)}${o.buy}</td><td class="r num">${nf(o.buyAmt)}</td><td class="r num">${o.rate.toFixed(6)}</td><td class="small">${o.remark ? esc(o.remark) : '<span class="muted">—</span>'} <button class="icon-mini" title="编辑备注" onclick="fxRemark('${o.id}')">✎</button></td><td>${statusBadge(o.status)}</td><td class="r"><button class="link" onclick="fxDetail('${o.id}')">查看</button></td></tr>`).join('') || '<tr><td colspan="12" class="empty">没有符合条件的换汇记录</td></tr>'}</tbody></table></div></div>`;
@@ -236,7 +243,7 @@ function fxDo(sellAmt, out, rate) {
 }
 
 // ---------- 全球付款 ----------
-const payees = (biz) => CPS.filter((c) => c.dir === '收款方' && c.status === '正常' && c.biz.includes(biz));
+const payees = (biz) => CPS.filter((c) => c.dir === '收款方' && c.status === '正常' && c.biz.includes(biz) && (S.page!=='xborder'||!S.xb?.country||S.xb.country==='中国'||c.country===S.xb.country));
 PAGES['cust:pay'] = () => {
   const t = S.ui.pt || 'pay';
   let body = '';
@@ -295,17 +302,28 @@ function wdDo() {
   bal()[w.ccy].a -= S.wd.amt; bal()[w.ccy].f += S.wd.amt; toast('提现已提交'); S.nextUI = { tt: 'orders' }; go('cust', 'txs');
 }
 
+function setCrossBorderCountry(country){if(!window.AzureDemoData?.countries.some(row=>row[0]===country))return;S.xb||={from:'USD',amt:20000,fee:'S',code:'121010',cp:'CP1',camt:30000};S.xb.country=country;if(S.pay)S.pay.ai=0;render();}
 // ---------- 跨境付款（到中国） ----------
 PAGES['cust:xborder'] = () => {
   const t = S.ui.xt || 'decl';
   const x = (S.xb ||= { from: 'USD', amt: 20000, fee: 'S', code: '121010', cp: 'CP1', camt: 30000 });
+  x.country||='中国';
+  const destinations=window.AzureDemoData?.countries.map(row=>row[0])||['中国','新加坡','美国','英国','日本','德国'];
+  const selector=`<section class="card card-pad crossborder-destination"><div class="field"><label for="crossborder-country">${C('收款國家／地區','收款国家／地区','Destination country / region')}</label><select id="crossborder-country" class="select" onchange="setCrossBorderCountry(this.value)">${destinations.map(country=>`<option value="${E(country)}" ${country===x.country?'selected':''}>${E(I18N.tr(country))}</option>`).join('')}</select></div></section>`;
+  if(x.country!=='中国'){
+    const previous=S.ui.pt;S.ui.pt='pay';let html;try{html=PAGES['cust:pay']();}finally{S.ui.pt=previous;}
+    const template=document.createElement('template');template.innerHTML=html;
+    const card=template.content.querySelector('.tabs')?.closest('.card');card?.querySelector('.tabs')?.remove();
+    return head(C('跨境付款','跨境付款','Cross-border payments'),C('選擇目的地並核對收款方、幣種及費用。','选择目的地并核对收款方、币种及费用。','Choose a destination and review the recipient, currency and fee.'))+selector+(card?.outerHTML||html);
+  }
+
   const feeX = CUST_PRICE[CID()].PAYOUT_INTL;
   let body = '';
   if (t === 'decl') {
     const rate = FXR[x.from] / FXR.CNY * (1 - CUST_PRICE[CID()].FX / 10000), cny = x.amt * rate;
     body = `<div class="card-pad grid g2" style="align-items:start"><div style="display:grid;gap:14px">
       ${note('跨境申报（结汇到中国）：从外币账户卖出，买入人民币到你的<b>跨境人民币账户</b>，之后可以代付给内地收款方。', 'mt0')}
-      <div class="form-grid"><div class="field"><label>卖出账户</label><select class="select" onchange="S.xb.from=this.value;render()">${['USD', 'HKD', 'EUR', 'CNH'].filter((c) => bal()[c]).map((c) => `<option ${c === x.from ? 'selected' : ''}>${c}</option>`).join('')}</select></div><div class="field"><label>买入账户</label><input class="input" value="跨境人民币账户 · 8200 0000 1422 01" disabled></div></div>
+      <div class="form-grid"><div class="field"><label>卖出账户</label><select class="select" onchange="S.xb.from=this.value;render()">${['USD', 'HKD', 'EUR', 'CNH'].filter((c) => bal()[c]).map((c) => `<option ${c === x.from ? 'selected' : ''}>${c}</option>`).join('')}</select></div><div class="field"><label>买入账户</label><input class="input" value="跨境人民币账户 · ${E(myAccts().find(a=>a.ccy==='CNY')?.no||'—')}" disabled></div></div>
       <div class="field"><label>卖出金额（${x.from}）</label><input class="input" value="${x.amt}" onchange="S.xb.amt=+this.value||0;render()"></div>
       <div class="form-grid"><div class="field"><label>申报编码及用途</label><select class="select" onchange="S.xb.code=this.value">${DECL_CODES.map(([k, l]) => `<option value="${k}" ${k === x.code ? 'selected' : ''}>${k} ${l}</option>`).join('')}</select></div><div class="field"><label>手续费扣取</label><select class="select" onchange="S.xb.fee=this.value;render()"><option value="S" ${x.fee === 'S' ? 'selected' : ''}>外扣</option><option value="B" ${x.fee === 'B' ? 'selected' : ''}>内扣</option></select></div></div>
       <div class="field"><label>交易背景材料（合同 / 发票 / 报关单）</label><input class="input" type="file"></div></div>
@@ -325,7 +343,7 @@ PAGES['cust:xborder'] = () => {
   } else {
     body = `<div class="card-pad">${batchFlow('批量代付（中国大陆）', S.ui.bstep || 0, [['深圳华兴元件有限公司', 'CMB · 7559****0018', 'CNY', 88000, '121010', 'OK'], ['王小明', 'ICBC · 6222****8812', 'CNY', 12000, '228010', '收款方待完善'], ['深圳华兴元件有限公司', 'CMB · 7559****0018', 'CNY', 46500, '121010', 'OK']])}</div>`;
   }
-  return head('跨境付款（到中国）', '跨境申报结汇、跨境代付到中国大陆、批量代付') + `<div class="card">${tabs('xt', [['decl', '跨境申报（结汇）'], ['payout', '跨境代付（中国大陆）'], ['batch', '批量代付']], t)}${body}</div>`;
+  return head(C('跨境付款','跨境付款','Cross-border payments'), C('中國內地：人民幣申報、代付與批量付款。','中国内地：人民币申报、代付与批量付款。','Mainland China: RMB declarations, payouts and batch payments.')) + selector + `<div class="card">${tabs('xt', [['decl', '跨境申报（结汇）'], ['payout', '跨境代付（中国大陆）'], ['batch', '批量代付']], t)}${body}</div>`;
 };
 function xbDecl(cny) {
   const x = S.xb; bal()[x.from].a -= x.amt;
