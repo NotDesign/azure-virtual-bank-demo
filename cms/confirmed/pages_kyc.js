@@ -96,30 +96,39 @@ function kycNeedExtra(k) {
   if (!k.sigSame) need.push(['SIGID', true]);
   return need;
 }
-function kycIssues(k, mode) {
-  const L = []; const req = (p, label, sec) => { const v = kGet(k, p); if (v === '' || v == null || (Array.isArray(v) && !v.length)) L.push({ p, label, sec }); };
+function kycChecks(k, mode) {
+  const L = [], filled = v => typeof v === 'string' ? !!v.trim() : Array.isArray(v) ? v.length > 0 : v != null;
+  const add = (p, label, sec, done, hard = false) => { const old = L.find(x => x.p === p); if (old) { if (!done) Object.assign(old, {done:false, label, hard}); } else L.push({p, label, sec, done:!!done, ...(hard ? {hard:true} : {})}); };
+  const req = (p, label, sec) => add(p, label, sec, filled(kGet(k, p)));
+  req('contact', '联系人', 'contact');
+  add('email', '联系电邮（有效格式）', 'contact', /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(k.email || ''));
+  add('phone', '联系电话', 'contact', !!k.phone?.trim() && k.phone.trim() !== '+852');
   req('legal', '法律地位', 'legal'); req('ctype', '客户类型', 'legal'); if (k.ctype === '集团') req('group', '所属集团', 'legal');
-  if (!k.cn && !k.en) { L.push({ p: 'cn', label: '中文名称或英文名称（二选一）', sec: 'name' }); }
+  add('cn', '中文名称或英文名称（二选一）', 'name', filled(k.cn) || filled(k.en));
   req('certType', '注册证书类型', 'cert'); req('certNo', '注册证书号码', 'cert'); req('certExp', '注册证书有效期', 'cert');
   if (k.legal === '法人团体') { req('crNo', 'CR 注册登记号', 'cert'); req('nar1Exp', 'NAR1 有效期', 'cert'); }
-  const dt = daysTo(k.certExp); if (dt !== null && dt < 30) L.push({ p: 'certExp', label: 'BR 有效期不足 30 天（不能提交，可存草稿）', sec: 'cert', hard: true });
+  const validDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value+'T00:00:00Z')) && new Date(value+'T00:00:00Z').toISOString().slice(0,10) === value;
+  if (filled(k.certExp) && !validDate(k.certExp)) add('certExp', '注册证书有效期须为有效日期 YYYY-MM-DD', 'cert', false);
+  if (k.legal === '法人团体' && filled(k.nar1Exp) && !validDate(k.nar1Exp)) add('nar1Exp', 'NAR1 有效期须为有效日期 YYYY-MM-DD', 'cert', false);
+  const dt = daysTo(k.certExp); if (dt !== null && dt < 30) add('certExp', 'BR 有效期不足 30 天（不能提交，可存草稿）', 'cert', false, true);
   req('cap', '注册资本', 'scale'); req('years', '经营年限', 'scale'); req('staff', '员工人数', 'scale');
-  if (!k.dirs.length) L.push({ p: 'dirs', label: '至少 1 位董事', sec: 'dirs' });
-  k.dirs.forEach((d, i) => ['name', 'first', 'last', 'idType', 'idNo'].forEach((f) => req(`dirs.${i}.${f}`, `董事 ${i + 1} ${{ name: '姓名', first: '英文名', last: '英文姓', idType: '证件类型', idNo: '证件号码' }[f]}`, 'dirs')));
-  if (!k.sigSame) k.sigs.forEach((d, i) => ['name', 'first', 'last', 'idType', 'idNo', 'dob'].forEach((f) => req(`sigs.${i}.${f}`, `签名人 ${i + 1} ${{ name: '姓名', first: '英文名', last: '英文姓', idType: '证件类型', idNo: '证件号码', dob: '出生日期' }[f]}`, 'sigs')));
+  if (!k.dirs.length) add('dirs', '至少 1 位董事', 'dirs', false);
+  k.dirs.forEach((d, i) => ['name', 'first', 'last', 'idType', 'idNo'].forEach(f => req(`dirs.${i}.${f}`, `董事 ${i + 1} ${{name:'姓名',first:'英文名',last:'英文姓',idType:'证件类型',idNo:'证件号码'}[f]}`, 'dirs')));
+  if (!k.sigSame) k.sigs.forEach((d, i) => ['name', 'first', 'last', 'idType', 'idNo', 'dob'].forEach(f => req(`sigs.${i}.${f}`, `签名人 ${i + 1} ${{name:'姓名',first:'英文名',last:'英文姓',idType:'证件类型',idNo:'证件号码',dob:'出生日期'}[f]}`, 'sigs')));
   k.ubos.forEach((d, i) => { req(`ubos.${i}.name`, `股东 ${i + 1} 姓名`, 'ubos'); req(`ubos.${i}.pct`, `股东 ${i + 1} 持股比例`, 'ubos'); });
-  ['country', 'prov'].forEach((f) => req('reg.' + f, '登记地址 ' + { country: '国家/地区', prov: '省/区' }[f], 'addr')); if (!k.reg.cn && !k.reg.en) L.push({ p: 'reg.cn', label: '登记地址（中文或英文二选一）', sec: 'addr' });
-  if (!k.bizSame) { ['country', 'prov'].forEach((f) => req('biz.' + f, '营业地址 ' + { country: '国家/地区', prov: '省/区' }[f], 'addr')); if (!k.biz.cn && !k.biz.en) L.push({ p: 'biz.cn', label: '营业地址（中文或英文二选一）', sec: 'addr' }); }
+  ['country', 'prov'].forEach(f => req('reg.' + f, '登记地址 ' + {country:'国家/地区',prov:'省/区'}[f], 'addr'));
+  add('reg.cn', '登记地址（中文或英文二选一）', 'addr', filled(k.reg.cn) || filled(k.reg.en));
+  if (!k.bizSame) { ['country', 'prov'].forEach(f => req('biz.' + f, '营业地址 ' + {country:'国家/地区',prov:'省/区'}[f], 'addr')); add('biz.cn', '营业地址（中文或英文二选一）', 'addr', filled(k.biz.cn) || filled(k.biz.en)); }
   req('mcc', 'MCC 行业代码', 'biz'); req('nature', '业务性质', 'biz'); if (mode === 'cs') req('risk', '风控级别', 'biz');
-  
-  if (+k.maxTx && +k.avgTx && +k.maxTx < +k.avgTx) L.push({ p: 'maxTx', label: '最高单笔不能小于平均单笔', sec: 'vol', hard: true });
-  const cpOK = (rows) => rows.some((r) => r.name && r.country && r.ccy);
-  if (!cpOK(k.buyers)) L.push({ p: 'buyers', label: '至少 1 个主要客户（名称、国家、货币）', sec: 'cp' });
-  if (!cpOK(k.sellers)) L.push({ p: 'sellers', label: '至少 1 个主要供应商（名称、国家、货币）', sec: 'cp' });
+  if (+k.maxTx && +k.avgTx) add('maxTx', '最高单笔不能小于平均单笔', 'vol', +k.maxTx >= +k.avgTx, true);
+  const cpOK = rows => rows.some(r => filled(r.name) && filled(r.country) && filled(r.ccy));
+  add('buyers', '至少 1 个主要客户（名称、国家、货币）', 'cp', cpOK(k.buyers));
+  add('sellers', '至少 1 个主要供应商（名称、国家、货币）', 'cp', cpOK(k.sellers));
   req('recvC', '主要收款国家', 'flow'); req('payC', '主要付款国家', 'flow'); req('recvCcy', '收款币种', 'flow'); req('payCcy', '付款币种', 'flow');
-  kycNeedExtra(k).filter(([, must]) => must).forEach(([key]) => { if (!k.extra[key]) L.push({ p: 'extra.' + key, label: '补充文件：' + KYC_EXTRA.find((x) => x[0] === key)[1], sec: 'docs' }); });
+  kycNeedExtra(k).filter(([, must]) => must).forEach(([key]) => add('extra.' + key, '补充文件：' + KYC_EXTRA.find(x => x[0] === key)[1], 'docs', filled(k.extra[key])));
   return L;
 }
+function kycIssues(k, mode) { return kycChecks(k, mode).filter(x => !x.done).map(({done, ...issue}) => issue); }
 
 // ---------- field renderers ----------
 function kOcrTag(p) { const c = S.kf._ocr[p]; if (!c) return ''; if (c === 'edited') return '<span class="ocr-tag ed">已修改</span>'; return `<span class="ocr-tag ${c < .85 ? 'lo' : ''}">OCR ${Math.round(c * 100)}%</span>`; }
@@ -164,12 +173,13 @@ function kAddr(p, title, en) {
 // ---------- the form ----------
 function kycForm(k, mode) {
   S.kf = k; const I = kycIssues(k, mode);
-  const secs = [['legal', '法律主体'], ['name', '商户名称'], ['cert', '注册证书'], ['scale', '规模与年限'], ['dirs', '董事'], ['sigs', '授权签名人'], ['ubos', '控股股东'], ['addr', '登记与营业地址'], ['biz', '行业与经营'], ['vol', '交易规模与收入'], ['cp', '上下游'], ['flow', '收付款国家'], ['docs', '补充文件']];
-  const nav = `<div class="kyc-nav">${secs.map(([id, n]) => { const c = I.filter((x) => x.sec === id).length; return `<a href="javascript:void 0" onclick="document.getElementById('ks-${id}').scrollIntoView({behavior:'smooth',block:'start'})" class="${c ? 'todo' : 'ok'}">${n}${c ? ` <b>${c}</b>` : ''}</a>`; }).join('')}</div>`;
+  const secs = [['contact', '联系人'], ['legal', '法律主体'], ['name', '商户名称'], ['cert', '注册证书'], ['scale', '规模与年限'], ['dirs', '董事'], ['sigs', '授权签名人'], ['ubos', '控股股东'], ['addr', '登记与营业地址'], ['biz', '行业与经营'], ['vol', '交易规模与收入'], ['cp', '上下游'], ['flow', '收付款国家'], ['docs', '补充文件']];
+  const nav = `<div class="kyc-nav">${secs.map(([id, n]) => { const c = I.filter((x) => x.sec === id).length; return `<a data-kyc-section="${id}" href="javascript:void 0" onclick="document.getElementById('ks-${id}').scrollIntoView({behavior:'smooth',block:'start'})" class="${c ? 'todo' : 'ok'}">${n}${c ? ` <b>${c}</b>` : ''}</a>`; }).join('')}</div>`;
   const ocrN = Object.values(k._ocr).filter((x) => typeof x === 'number').length;
   const top = `<div class="kyc-top"><div><div class="bold">必填完成度 ${Math.max(0, 100 - Math.round((I.length / 60) * 100))}%</div><div class="small muted">${ocrN ? `已从扫描文件自动填入 ${ocrN} 个字段（标有 OCR），黄色为低置信度，请核对。` : '没有扫描结果，请手动填写。'}${I.length ? ` 还有 ${I.length} 项待处理。` : ' 全部必填项已完成。'}</div></div><div class="progress" style="width:160px"><span style="width:${Math.max(4, 100 - Math.round((I.length / 60) * 100))}%"></span></div></div>`;
   const dirOpts = k.dirs.map((d, i) => [String(i), `董事 ${i + 1} · ${d.name || '未填姓名'}`]);
   const body = [
+    kSec('contact', '联系人与通知方式', '用于申请联络及通知', `${kf('联系人', 'Contact Name', 'contact', {req:true})}${kf('联系电邮', 'Contact Email', 'email', {req:true,type:'email'})}${kf('联系电话', 'Contact Phone', 'phone', {req:true})}${kf('职位', 'Title', 'title')}`, I),
     kSec('legal', '法律主体', '法律地位会影响需要填写的资料', `${kf('法律地位', 'Legal Status', 'legal', { req: true, options: ['个人', '合伙', '法人团体', '非法人团体'], re: true, hint: '个人 / 合伙 / 法人团体 / 非法人团体' })}${kf('客户类型', 'Customer Type', 'ctype', { req: true, options: [['普通', '普通 GENERAL'], ['集团', '集团 GROUP']], re: true })}${kf('所属集团', 'Group', 'group', { req: k.ctype === '集团', ph: '请输入所属集团', hint: '集团客户必填' })}${kf('上级商户', 'Parent Merchant', 'parent', { ph: '选填', hint: '选填；集团下属公司可填写上级商户' })}${mode === 'cs' ? kf('考察日期', 'Inspection Date', 'inspect', { type: 'date', hint: 'CS 填写；实际考察日期' }) : ''}`, I),
     kSec('name', '商户名称', '中文名称或英文名称至少填一项；简称为选填', `${kf('中文名称', 'Chinese Name', 'cn', { max: 50, hint: '与英文名称二选一填写；上限 100 bytes', span2: true })}${kf('中文简称', 'Chinese Short Name', 'cnShort', { max: 50, hint: '选填' })}${kf('英文名称', 'English Name', 'en', { hint: '与中文名称二选一填写；填写时须与 BR 一致', span2: true })}${kf('英文简称', 'English Short Name', 'enShort', { hint: '选填' })}`, I),
     kSec('cert', '注册证书', 'BR 有效期不足 30 天时不能提交，但可以存草稿', `${kf('注册证书类型', 'Certificate Type', 'certType', { req: true, options: ['商业登记证 BR', '事业单位法人证书', '身份证', '其他'] })}${kf('注册证书号码', 'Certificate Number', 'certNo', { req: true, ph: '12345678-000-03-26-7', hint: '香港 BR 须填完整号码（含后三段）' })}${kf('注册证书有效期', 'Certificate Expiry Date', 'certExp', { req: true, type: 'date', re: true, hint: daysTo(k.certExp) !== null ? `距今 ${daysTo(k.certExp)} 天${daysTo(k.certExp) < 30 ? '，不足 30 天' : ''}` : '有效期须至少剩下 30 天' })}${kf('CR 注册登记号', 'CR Number', 'crNo', { req: k.legal === '法人团体', hint: '法人团体必填' })}${kf('NAR1 有效期', 'NAR1 Expiry Date', 'nar1Exp', { req: k.legal === '法人团体', type: 'date', hint: '法人团体必填；按周年申报日期' })}${kf('成立日期', 'Incorporation Date', 'incDate', { type: 'date', hint: '从 CR 识别' })}`, I),

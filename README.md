@@ -159,3 +159,20 @@ The account picker explicitly labels verified accounts as direct switches, shows
 - Every existing customer has its own fictional balances, bank accounts, team, counterparties, FX orders, wallet opening balances, address book, conversion history and a partially settled batch. Fiat and USDT fixtures preserve customer scope. Statement reads are pure; any balancing Demo treasury settlements are explicit seed transactions.
 - The cross-border Demo offers China, Hong Kong, Singapore, USA, UK, Japan and Germany. Mainland China retains its RMB declaration flow; other destinations use their own approved Demo recipient and currency. This does not establish production channel coverage.
 - References: https://developer.apple.com/design/human-interface-guidelines/typography and https://developer.apple.com/design/human-interface-guidelines/accessibility ; https://m3.material.io/styles/typography/applying-type and https://m3.material.io/components/lists/overview .
+
+
+## Compact customer summaries and application completion (2026-11-12)
+
+The customer-home fiat total is a compact two-row summary. Payment, exchange and statement actions sit next to the amount; the decorative logo and forced minimum height are removed. To-dos use a separate compact strip. Application-link cards share aligned QR, metadata and action rows with responsive column counts.
+
+The application wizard now exposes required-data completion and clickable missing-item links on every step, in the operation rail on desktop and inline on smaller screens. Counts use the same conditional rules as submission, including contact fields, company/group data, additional people and required supporting documents. Opening a step does not mark it complete. Input updates keep the active field and caret; incomplete KYC and unchecked declarations prevent submission. Recognition remains optional for data entry and its results still require human review.
+
+**Form templates** save and restore the current form fields in browser local storage, scoped by login account (or public invitation). Two built-in starters contain business settings only. Saved templates omit document uploads, KYC completion and declarations; applying one resets KYC and consent and recalculates missing items. They are not synchronized to a server.
+
+**Batch import** accepts UTF-8 CSV and Excel `.xlsx`, up to 200 applications and 3 MB per file. Preview rows, validation messages and selection precede import. Selected rows become independent, editable drafts; they are not automatically submitted. Switching drafts preserves each draft's fields and document context, and the batch selector remains available after submitting one draft. Duplicate mapped headers, malformed CSV and formula cells cannot silently overwrite application data. Workbook parsing runs in a local worker, with ZIP expansion limits and a 15-second deadline. Legacy `.xls` must be saved as `.xlsx` first.
+
+**Export layouts** provide blank CSV/XLSX layouts and exports of the current fields. XLSX includes a field guide, frozen headers and text formatting for identifiers. Multi-person/party JSON columns preserve all directors, signatories, shareholders, buyers and suppliers; single-row columns remain available for ordinary imports. Conflicting single-person and full-array values are flagged in the preview. Documents, KYC and consent are completed separately after import. CSV exports escape formula prefixes.
+
+ExcelJS 4.4.0 is vendored locally with its MIT license. Its browser import/export API is documented in the [official repository](https://github.com/exceljs/exceljs). It is loaded only for Excel export or inside the local import worker; no spreadsheet content is sent to an external service.
+
+Focused validation: `scripts/verify-onboarding-progress-templates.mjs`, document-review regression and the existing system-review suite. Test data and exported QA workbooks are fictional and are excluded from public runtime packages.

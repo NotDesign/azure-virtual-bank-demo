@@ -312,13 +312,13 @@ PAGES['*:links'] = () => {
   });
   const tpls = S.portal === 'hq' ? ['自营标准价', '自营大客户价'] : S.portal === 'l1' ? ['港汇通标准价', '港汇通大客户价'] : ['（由一级设定）'];
   return head('开户链接 / QR', '客户经链接开户后，自动归属到生成链接的一方和对应的费率模板') +
-    `<div class="grid" style="grid-template-columns:1fr 2fr"><div class="card"><div class="card-head"><h3 class="card-title">生成新链接</h3></div><div class="card-pad" style="display:grid;gap:12px">
+    `<div class="onboarding-links-layout"><div class="card onboarding-link-form"><div class="card-head"><h3 class="card-title">生成新链接</h3></div><div class="card-pad" style="display:grid;gap:12px">
       <div class="field"><label>费率模板</label><select class="select" id="lkTpl">${tpls.map((t) => `<option>${t}</option>`).join('')}</select></div>
       <div class="field"><label>来源标签</label><input class="input" id="lkTag" placeholder="例：展会、微信群"/></div>
       <div class="field"><label>有效期</label><select class="select" id="lkExp"><option>长期</option><option>30 天</option><option>2026-12-31</option></select></div>
       ${S.portal === 'l2' ? note('费率由一级代理设定，二级不能修改。') : ''}
       <button class="btn primary" onclick="newLink()">生成链接和 QR</button></div></div>
-    <div class="grid g2">${list.map((l) => { const url = `https://apply.meepay.example/r/${l.code}`; return `<div class="card card-pad"><div class="qr-box"><div class="qr" data-url="${url}"></div><div style="min-width:0"><div class="bold mono">${l.code}</div><div class="small muted">${l.org === 'HQ' ? '全权管理者自营' : agent(l.org).name}</div><div class="small mt">模板：${l.tpl}</div><div class="small">标签：${l.tag} · 有效期：${l.exp}</div><div class="small">已开户：<b>${l.uses}</b></div><div class="btn-row mt"><button class="btn sm" onclick="navigator.clipboard&&navigator.clipboard.writeText('${url}');toast('已复制链接')">复制链接</button><button class="btn sm" onclick="location.hash='#/apply/${l.code}'">打开申请页</button></div></div></div></div>`; }).join('')}</div></div>`;
+    <div class="onboarding-links-grid">${list.map((l) => { const url = `https://apply.meepay.example/r/${l.code}`; return `<article class="card onboarding-link-card"><div class="qr-box"><div class="qr" data-url="${url}"></div><div class="onboarding-link-info"><header><h3 class="bold mono">${E(l.code)}</h3><p class="small muted">${E(l.org === 'HQ' ? '全权管理者自营' : agent(l.org).name)}</p></header><dl class="onboarding-link-meta"><div><dt>模板</dt><dd>${E(l.tpl)}</dd></div><div><dt>标签</dt><dd>${E(l.tag)}</dd></div><div><dt>有效期</dt><dd>${E(l.exp)}</dd></div><div><dt>已开户</dt><dd><b>${l.uses}</b></dd></div></dl></div><div class="btn-row onboarding-link-actions"><button class="btn sm" onclick="copyDemoLink('apply','${E(l.code)}')">复制链接</button><button class="btn sm" onclick="openPublic('apply','${E(l.code)}')">打开申请页</button></div></div></article>`; }).join('')}</div></div>`;
 };
 function newLink() {
   const o = ME[S.portal].org; const n = LINKS.filter((l) => l.org === o).length + 1;
