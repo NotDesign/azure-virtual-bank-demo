@@ -62,3 +62,13 @@
 .wizard-steps>.step>span:last-child{white-space:nowrap}
 .wizard-steps{overflow-x:auto;scrollbar-width:thin}
 @media(max-width:599px){.wizard-template-tools{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.wizard-template-tools>.btn{font-size:12px;padding:8px 4px;white-space:nowrap}.wizard-template-tools .field{grid-column:1/-1}}
+
+.wizard-draft-storage{grid-column:1/-1;display:grid;gap:6px;min-width:0;padding-top:8px;border-top:1px solid var(--color-divider)}
+.wizard-draft-storage>.btn-row{display:flex;gap:8px;align-items:center}
+.wizard-draft-storage [data-draft-save]{flex:1;min-height:44px;font-size:13px}
+.wizard-draft-storage [data-draft-delete]{flex:none;width:44px;height:44px;border:1px solid var(--color-divider);border-radius:10px}
+.wizard-draft-storage p{margin:0;font-size:12px;line-height:20px;color:var(--color-text-muted);overflow-wrap:anywhere}
+.wizard-draft-storage .draft-save-error{color:var(--danger)}
+.wizard-draft-storage .draft-restored-note{color:var(--accent)}
+.saved-drafts-notice{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.saved-drafts-notice>.btn{flex:none;min-height:44px}

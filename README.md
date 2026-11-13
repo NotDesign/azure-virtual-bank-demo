@@ -176,3 +176,14 @@ The application wizard now exposes required-data completion and clickable missin
 ExcelJS 4.4.0 is vendored locally with its MIT license. Its browser import/export API is documented in the [official repository](https://github.com/exceljs/exceljs). It is loaded only for Excel export or inside the local import worker; no spreadsheet content is sent to an external service.
 
 Focused validation: `scripts/verify-onboarding-progress-templates.mjs`, document-review regression and the existing system-review suite. Test data and exported QA workbooks are fictional and are excluded from public runtime packages.
+
+
+### Saved onboarding drafts (2026-11-13)
+
+Imported CSV/XLSX drafts and individual application drafts now autosave to **IndexedDB in the current browser**. The action area includes **Save draft**, the last saved time, errors/retry, a draft selector and explicit deletion. A **Continue drafts** entry appears after signing in. Each canonical login account (role, organization ID and email), or public invitation, has its own storage scope. Reloading, closing the page or signing out does not delete saved drafts. Clearing this site's browser data, private-browsing cleanup or changing browser/device removes access; there is no server or cross-device synchronization.
+
+Original uploaded document blobs, their classifications/review candidates, supplemental uploads, custom document labels, selected account product IDs, fields and current step are retained. Restored originals open lazily for review without automatically running OCR again. In-progress recognition becomes an explicit retry; unavailable blobs are marked missing and do not count as uploads. KYC capture sessions, return codes, confirmation tokens, live camera images and final consent are not persisted as completed verification: restored drafts require KYC and declaration reconfirmation. Form templates remain a separate field-only feature.
+
+Form metadata and changed file blobs commit atomically; unchanged blobs are not rewritten on each keystroke. A failed storage write leaves the previous saved draft intact, keeps edits in memory, and displays an error with manual retry. Unsupported saved schemas are not silently replaced. Submitting one application removes only that pending draft and its stored blobs; other pending drafts remain available. Deleting a draft explicitly removes its saved files. This is browser-local Demo storage, not production authentication or banking infrastructure.
+
+Additional validation: `scripts/verify-saved-drafts.mjs` covers CSV/XLSX persistence, refresh, reopening, logout/login, separate accounts/invitations, original and supplemental file recovery, KYC/consent reset, storage failure/retry, immediate refresh, mobile layout, submission cleanup, deletion and unsupported schema handling. Test documents are synthetic.

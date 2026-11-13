@@ -1,4 +1,4 @@
-import {createWizardTemplates} from './wizard-templates.js?v=20261112-compact-progress';
+import {createWizardTemplates} from './wizard-templates.js?v=20261113-saved-drafts';
 import {createWizardProgress} from './wizard-progress.js?v=20261112-compact-progress';
 // Application flow adapter. Demo fill is explicit and never represents OCR.
 const B=window.AzureBridge,F=window.AzureFiles,C=B.copy,E=B.escape;
@@ -37,8 +37,8 @@ async function fillStep(){const w=B.wizard;w.demoSteps||=[];if(!w.demoSteps.incl
  if(w.step===5)w.agreed=true;
  B.render();B.toast(C('本步已代填虛構 Demo 資料。','本步已代填虚构 Demo 资料。','This step was filled with fictional Demo data.'));
 }
-function enhance(){if(B.state.page!=='apply')return;const w=B.wizard;if(w.done){const clear=document.querySelector('.operations>.btn-row>button');if(clear){clear.removeAttribute('onclick');clear.dataset.wizardClear='';}templates.enhance();return;}
- if(w.step>2&&!w.identity?.confirmed&&!document.querySelector('[data-wizard-return-identity]'))document.querySelector('.card .card-pad')?.insertAdjacentHTML('afterbegin',`<div class="note warn"><div>${C('證件資料已更改，需要重新核對。','证件资料已更改，需要重新核对。','Identity details changed and need review.')} <button class="btn sm" data-wizard-return-identity>${C('返回 Step 2','返回 Step 2','Return to Step 2')}</button></div></div>`);
+function enhance(){if(B.state.page!=='apply'){templates.enhance();return;}const w=B.wizard;if(w.done){const clear=document.querySelector('.operations>.btn-row>button');if(clear){clear.removeAttribute('onclick');clear.dataset.wizardClear='';}templates.enhance();return;}
+ if(w.step>2&&!w.identity?.confirmed&&!document.querySelector('[data-wizard-return-identity]'))document.querySelector('.card .card-pad')?.insertAdjacentHTML('afterbegin',`<div class="note warn"><div>${C('請完成或重新確認 KYC。','请完成或重新确认 KYC。','Complete or reconfirm KYC.')} <button class="btn sm" data-wizard-return-identity>${C('返回 Step 2','返回 Step 2','Return to Step 2')}</button></div></div>`);
  const rail=document.querySelector('.operations>.btn-row');if(rail&&!rail.querySelector('[data-demo-fill]')){const button=document.createElement('button');button.className='btn primary';button.dataset.demoFill='';button.textContent=demoLabel();const clear=rail.querySelector('button');if(clear){clear.removeAttribute('onclick');clear.dataset.wizardClear='';clear.insertAdjacentElement('afterend',button);}else rail.append(button);}
  document.querySelectorAll('.bad').forEach(el=>{el.setAttribute('aria-invalid','true');const field=el.closest('.field');if(field&&!field.querySelector('.required-hint'))field.insertAdjacentHTML('beforeend',`<small class="required-hint">${C('需要補充／核對','需要补充／核对','Complete or review this field')}</small>`);});
  progress.enhance();templates.enhance();

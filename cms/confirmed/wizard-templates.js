@@ -1,3 +1,4 @@
+import {createDraftStore} from './wizard-draft-store.js?v=20261113-saved-drafts';
 // Browser-local form templates and reviewed import drafts; never bulk-submits KYC.
 export function createWizardTemplates({B,F,progress}) {
  const C=B.copy,E=B.escape,clone=v=>structuredClone(v),limit=200;let excelPromise,busy=false,preview=null,active='',drafts=[];
@@ -44,10 +45,82 @@ export function createWizardTemplates({B,F,progress}) {
   F.files.forEach(f=>{f.identityReviewed=false;f.candidates?.forEach(c=>c.applied=false);if(f.status==='已人工核對')f.status='待核對';});w.ocr=null;w.company=w.k.cn||w.k.en;w.contact=w.k.contact;w.email=w.k.email;w.phone=w.k.phone;
   B.state.kfErr=null;w.step=3;B.close();B.render();B.toast(T('已帶入模板，請核對缺項並重新完成 KYC。','已带入模板，请核对缺项并重新完成 KYC。','Template applied. Review missing data and complete KYC again.'));return true;
  }
- function tools(){return `<section class="wizard-template-tools" aria-label="${T('模板與批量匯入','模板与批量导入','Templates and batch import')}"><button class="btn" data-wizard-templates>${T('填寫模板','填写模板','Form templates')}</button><button class="btn" data-wizard-import>${T('批量匯入','批量导入','Import')}</button><button class="btn" data-wizard-export>${T('輸出版型','导出版型','Export layout')}</button>${drafts.length?`<div class="field"><label for="wizard-draft-select">${T(`批次草稿（${drafts.length} 筆）`,`批次草稿（${drafts.length} 笔）`,`Batch drafts (${drafts.length})`)}</label><select class="select" id="wizard-draft-select"><option value="">${T('選擇待填資料','选择待填资料','Choose a draft')}</option>${drafts.map(r=>`<option value="${E(r.id)}" ${r.id===active?'selected':''}>${E(r.state.k?.cn||r.state.k?.en||r.name)}${r.state.done?' · '+T('已提交','已提交','Submitted'):' · '+T('待完成','待完成','Incomplete')}</option>`).join('')}</select></div>`:''}</section>`;}
+ // Drafts belong to the canonical login identity (or a public invitation), not the viewed customer.
+ const draftStore=createDraftStore();let scope='',ready=false,loading=false,loadBlocked=false,edited=false,restoreNote='',saveError=false,savedAt='',saving=0,epoch=0,selection=0,chain=Promise.resolve(),readyPromise=Promise.resolve();
+ const dirty=new Set(),removed=new Set(),signatures=new Map();
+ function draftScope(){const a=B.account;return a?.email?'account:'+JSON.stringify([a.role,a.id,a.email.toLowerCase()]):B.state.portal==='public'&&B.state.page==='apply'?'invitation:'+B.state.arg:'';}
+ function restoreState(raw,id){
+  const k=sanitize(raw.k);k.custom=Array.isArray(raw.k?.custom)?raw.k.custom.filter(v=>typeof v==='string').slice(0,40).map(v=>v.slice(0,5000)):[];k._ocr=raw.k?._ocr&&typeof raw.k._ocr==='object'?Object.fromEntries(Object.entries(raw.k._ocr).filter(([key,v])=>!['__proto__','constructor','prototype'].includes(key)&&['number','string'].includes(typeof v))):{};
+  return {step:Math.max(1,Math.min(5,Number.isInteger(raw.step)?raw.step:1)),company:k.cn||k.en||'',contact:k.contact||'',email:k.email||'',phone:k.phone||'',k,docs:{},accounts:accountIndices(Array.isArray(raw.products)?raw.products:[]),identity:null,agreed:false,ocr:raw.ocr?.reviewed?{reviewed:true}:null,demoSteps:Array.isArray(raw.demoSteps)?raw.demoSteps.filter(n=>[1,3,4].includes(n)):[],_documentSession:id};
+ }
+ function packed(row){
+  const w=row.state,k=sanitize(w.k);k.custom=Array.isArray(w.k?.custom)?w.k.custom.filter(v=>typeof v==='string').slice(0,40).map(v=>v.slice(0,5000)):[];k._ocr=w.k?._ocr||{};
+  const files=F.draftFiles(w._documentSession,w.k);k.extra=Object.fromEntries([...new Set(files.filter(f=>f.kind==='extra').map(f=>f.key))].map(key=>[key,w.k.extra[key]]));
+  return {id:row.id,name:row.name,state:{step:w.step,k,products:productIds(w),ocr:w.ocr?.reviewed?{reviewed:true}:null,demoSteps:w.demoSteps||[]},files};
+ }
+ function saveStatus(){
+  return B.state.page==='apply'&&B.wizard.done?T('此筆已提交，未完成草稿已保留。','此笔已提交，未完成草稿已保留。','This draft was submitted. Unfinished drafts remain available.'):loading?T('正在恢復草稿…','正在恢复草稿…','Restoring drafts…'):saveError?T('未能儲存，資料仍在此頁；請重試。','未能储存，资料仍在此页；请重试。','Not saved. Your edits remain on this page; retry saving.'):saving?T('正在儲存…','正在储存…','Saving…'):savedAt?T('已儲存於此瀏覽器 · ','已储存于此浏览器 · ','Saved in this browser · ')+new Date(savedAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'}):T('自動儲存於此瀏覽器，依登入帳號分開。','自动储存于此浏览器，按登录账号分开。','Autosaved in this browser, separately for each account.');
+ }
+ function paintStatus(){document.querySelectorAll('[data-draft-status]').forEach(n=>{n.textContent=saveStatus();n.classList.toggle('draft-save-error',saveError);});document.querySelectorAll('[data-draft-save]').forEach(n=>n.disabled=loading||!!B.state.wiz?.done);}
+ function track(){
+  if(B.state.page!=='apply'||!ready)return;
+  let row=drafts.find(r=>r.id===active);
+  if(!row||row.state!==B.wizard){row={id:crypto.randomUUID(),name:T('填寫草稿','填写草稿','Application draft'),state:B.wizard,hydrated:true};drafts.push(row);active=row.id;}
+  if(row.state.done){removed.add(row.id);dirty.delete(row.id);return;}
+  row.hydrated=true;dirty.add(row.id);
+ }
+ function flush(){
+  if(!ready||loadBlocked||!scope)return Promise.resolve(false);
+  const rows=[];for(const id of dirty){const row=drafts.find(r=>r.id===id);if(row&&!row.state.done&&row.hydrated){const item=packed(row),signature=JSON.stringify(item,(key,v)=>key==='file'?undefined:v);if(signatures.get(id)!==signature){rows.push(item);signatures.set(id,signature);}}}
+  dirty.clear();const deletes=[...removed];removed.clear();if(!rows.length&&!deletes.length)return chain;
+  const ownScope=scope,ownEpoch=epoch,ownActive=active;saving++;paintStatus();
+  // Snapshot synchronously; a draft/account switch cannot change a queued write.
+  const snapshots=rows.map(r=>({...r,state:clone(r.state),files:r.files.map(f=>({...f,meta:f.meta?clone(f.meta):undefined}))}));
+  const run=async()=>{try{const date=await draftStore.save(ownScope,snapshots,deletes,ownActive);if(ownEpoch===epoch){savedAt=date;saveError=false;}return true;}catch(e){if(ownEpoch===epoch){saveError=true;rows.forEach(r=>{signatures.delete(r.id);dirty.add(r.id);});deletes.forEach(id=>removed.add(id));}return false;}finally{if(ownEpoch===epoch){saving--;paintStatus();}}};
+  chain=chain.then(run,run);return chain;
+ }
+ function changed(){
+  if(draftScope()!==scope){ensure();return;}edited=true;
+  if(loading&&ready){selection++;loading=false;paintStatus();}
+  if(!ready)return;
+  track();void flush();
+ }
+ function ensure(){
+  const next=draftScope();if(!next)return;
+  if(next===scope&&(ready||loading||loadBlocked))return;
+  if(next!==scope){if(scope){F.resetWizard();B.state.wiz=null;}epoch++;scope=next;drafts=[];active='';ready=false;edited=false;restoreNote='';saveError=false;savedAt='';saving=0;dirty.clear();removed.clear();signatures.clear();selection++;}
+  const ownEpoch=epoch;loading=true;paintStatus();
+  readyPromise=draftStore.list(scope).then(async data=>{
+   if(ownEpoch!==epoch||draftScope()!==scope)return;
+   const rows=data.rows;if(rows.length>200)throw Error('Too many drafts');
+   for(const r of rows)if(!/^[-\w]+$/.test(r.id)||!r.state.k||typeof r.state.k!=='object')throw Error('Invalid draft');
+   drafts=rows.map(r=>({id:r.id,name:String(r.name||'').slice(0,100),state:restoreState(r.state,r.id),files:r.files,hydrated:false,updatedAt:r.updatedAt}));
+   active=data.active&&drafts.some(r=>r.id===data.active)?data.active:drafts[0]?.id||'';ready=true;loading=false;loadBlocked=false;saveError=false;savedAt=drafts.find(r=>r.id===active)?.updatedAt||'';
+   if(B.state.page==='apply'&&!edited&&active)await loadDraft(active,true);
+   else if(edited&&B.state.page==='apply'){active='';track();void flush();B.render();}
+   else B.render();
+  }).catch(()=>{if(ownEpoch!==epoch)return;ready=false;loading=false;loadBlocked=true;saveError=true;paintStatus();});
+ }
+ async function saveDraft(){
+  ensure();if(loadBlocked){loadBlocked=false;ensure();}await readyPromise;
+  if(!ready||B.wizard.done)return false;track();const ok=await flush();enhance();if(ok)B.toast(T('草稿已儲存，可在此瀏覽器下次登入後繼續。','草稿已储存，可在此浏览器下次登录后继续。','Draft saved. Continue in this browser after signing in again.'));return ok;
+ }
+ function resumeNotice(){
+  document.querySelector('.saved-drafts-notice')?.remove();
+  const pending=drafts.filter(r=>!r.state.done);if(!ready||!pending.length||B.state.page==='apply'||B.state.portal==='public')return;
+  const head=document.querySelector('.page-in>.page-head');if(!head)return;
+  const node=document.createElement('div');node.className='note saved-drafts-notice';node.innerHTML=`<div>${T(`有 ${pending.length} 筆已儲存草稿，可繼續填寫。`,`有 ${pending.length} 笔已储存草稿，可继续填写。`,`${pending.length} saved drafts are ready to continue.`)}</div><button class="btn sm" data-drafts-resume>${T('繼續填寫','继续填写','Continue drafts')}</button>`;head.after(node);
+ }
+ function deleteDraft(){
+  const row=drafts.find(r=>r.id===active);if(!row||row.state.done)return;
+  B.modal(T('刪除草稿','删除草稿','Delete draft'),`<p>${T('刪除此草稿及其已儲存文件？此操作無法復原。','删除此草稿及其已储存文件？此操作无法恢复。','Delete this draft and its saved files? This cannot be undone.')}</p><p data-notr><strong>${E(row.state.k?.cn||row.state.k?.en||row.name)}</strong></p>`,`<button class="btn" onclick="closeModal()">${T('取消','取消','Cancel')}</button><button class="btn danger" data-draft-delete-confirm="${E(row.id)}">${T('刪除草稿','删除草稿','Delete draft')}</button>`);
+ }
+ function tools(){return `<section class="wizard-template-tools" aria-label="${T('模板與批量匯入','模板与批量导入','Templates and batch import')}"><button class="btn" data-wizard-templates>${T('填寫模板','填写模板','Form templates')}</button><button class="btn" data-wizard-import>${T('批量匯入','批量导入','Import')}</button><button class="btn" data-wizard-export>${T('輸出版型','导出版型','Export layout')}</button><div class="wizard-draft-storage"><div class="btn-row"><button class="btn" data-draft-save ${loading||B.wizard.done?'disabled':''}>${T('儲存草稿','储存草稿','Save draft')}</button>${active&&!drafts.find(r=>r.id===active)?.state.done?`<button class="icon-btn" data-draft-delete aria-label="${T('刪除目前草稿','删除当前草稿','Delete current draft')}">×</button>`:''}</div><p data-draft-status role="status" class="${saveError?'draft-save-error':''}">${E(saveStatus())}</p>${restoreNote?`<p class="draft-restored-note">${E(restoreNote)}</p>`:''}</div>${drafts.length?`<div class="field"><label for="wizard-draft-select">${T(`批次草稿（${drafts.length} 筆）`,`批次草稿（${drafts.length} 笔）`,`Batch drafts (${drafts.length})`)}</label><select class="select" id="wizard-draft-select"><option value="">${T('選擇待填資料','选择待填资料','Choose a draft')}</option>${drafts.map(r=>`<option value="${E(r.id)}" ${r.id===active?'selected':''}>${E(r.state.k?.cn||r.state.k?.en||r.name)}${r.state.done?' · '+T('已提交','已提交','Submitted'):' · '+T('待完成','待完成','Incomplete')}</option>`).join('')}</select></div>`:''}</section>`;}
  function enhance(){
-  if(B.state.page!=='apply')return;
-  if(active&&drafts.find(r=>r.id===active)?.state!==B.wizard)active='';
+  ensure();if(B.state.page!=='apply'){resumeNotice();return;}
+  const current=drafts.find(r=>r.id===active);
+  if(current&&current.state!==B.wizard){if(!edited||!B.state.wiz?.k){void loadDraft(active,true);return;}active='';}
+  if(current?.state===B.wizard){if(current.state.done){removed.add(current.id);dirty.delete(current.id);}else if(current.hydrated)dirty.add(current.id);void flush();}
   document.querySelectorAll('.wizard-template-tools').forEach(n=>n.remove());const doc=new DOMParser().parseFromString(tools(),'text/html'),node=doc.body.firstElementChild,rail=document.querySelector('.operations'),panel=document.querySelector('.wizard-fill-progress');
   if(innerWidth>=1200&&rail)rail.insertBefore(node,panel?.parentElement===rail?panel:null);else if(panel)panel.after(node);else document.querySelector('.workspace-body>.card,.public-body>.card,.page-in>.card')?.after(node);
  }
@@ -87,10 +160,22 @@ export function createWizardTemplates({B,F,progress}) {
  }
  function confirmImport(){
   const selected=preview?.rows.filter(r=>r.selected&&!r.fatal)||[];if(!selected.length)return B.toast(T('請先選取可匯入的資料。','请先选择可导入的数据。','Select importable rows first.'));if(drafts.length+selected.length>200)return B.toast(T('批次草稿最多 200 筆。','批次草稿最多 200 笔。','Up to 200 batch drafts.'));
-  if(!active&&B.wizard.k)drafts.push({id:crypto.randomUUID(),name:T('原有草稿','原有草稿','Previous draft'),state:B.wizard});
-  const additions=selected.map(r=>({id:r.id,name:r.name,state:{step:1,company:r.k.cn||r.k.en,contact:r.k.contact,email:r.k.email,phone:r.k.phone,k:sanitize(r.k),docs:{},accounts:r.accounts,identity:null,agreed:false,demoSteps:[]}}));drafts.push(...additions);preview=null;B.close();loadDraft(additions[0].id);B.toast(T(`已加入 ${additions.length} 筆草稿，請逐筆完成文件與 KYC。`,`已加入 ${additions.length} 笔草稿，请逐笔完成文件与 KYC。`,`${additions.length} drafts added. Complete documents and KYC for each.`));
+  if(!ready)return B.toast(T('草稿儲存尚未就緒，請稍後重試。','草稿储存尚未就绪，请稍后重试。','Draft storage is not ready. Try again shortly.'));
+  if(!active&&B.wizard.k){const row={id:crypto.randomUUID(),name:T('原有草稿','原有草稿','Previous draft'),state:B.wizard,hydrated:true};drafts.push(row);dirty.add(row.id);}
+  const additions=selected.map(r=>({id:r.id,name:r.name,hydrated:true,state:{step:1,company:r.k.cn||r.k.en,contact:r.k.contact,email:r.k.email,phone:r.k.phone,k:sanitize(r.k),docs:{},accounts:r.accounts,identity:null,agreed:false,demoSteps:[]}}));drafts.push(...additions);additions.forEach(r=>dirty.add(r.id));void flush();preview=null;B.close();loadDraft(additions[0].id);B.toast(T(`已加入 ${additions.length} 筆草稿，請逐筆完成文件與 KYC。`,`已加入 ${additions.length} 笔草稿，请逐笔完成文件与 KYC。`,`${additions.length} drafts added. Complete documents and KYC for each.`));
  }
- function loadDraft(id){const row=drafts.find(r=>r.id===id);if(!row)return;active=id;B.state.wiz=row.state;B.state.kfErr=null;F.resetContext();B.render();}
+ async function loadDraft(id,restoring=false){
+  const row=drafts.find(r=>r.id===id);if(!row)return;
+  const ownScope=scope,ownEpoch=epoch,token=++selection;
+  if(active&&B.state.page==='apply'&&drafts.find(r=>r.id===active)?.state===B.wizard){track();void flush();}
+  let uploads;if(!row.hydrated){loading=true;paintStatus();try{const blobs=await draftStore.files(ownScope,id);uploads=row.files.map(meta=>({...meta,blob:blobs.find(b=>b.id===meta.id)?.blob}));}catch{loading=false;saveError=true;paintStatus();return;}}
+  if(ownEpoch!==epoch||token!==selection||draftScope()!==ownScope)return;
+  active=id;B.state.wiz=row.state;B.state.kfErr=null;F.resetContext();
+  if(uploads){const missing=F.restoreDraft(uploads);row.hydrated=true;restoreNote=T('已恢復填寫進度及文件；KYC 與提交聲明需重新確認。','已恢复填写进度及文件；KYC 与提交声明需重新确认。','Fields and files restored. Confirm KYC and the declaration again.')+(missing?T(` ${missing} 份文件未能恢復，請重新上傳。`,` ${missing} 份文件未能恢复，请重新上传。`,` ${missing} files could not be restored. Upload them again.`):'');}
+  else if(!restoring)restoreNote='';loading=false;edited=false;
+  // Persist the active selection even when only the selected draft changed.
+  signatures.delete(id);dirty.add(id);void flush();B.render();
+ }
  function download(name,data,type){const blob=new Blob([data],{type}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);}
  const safeCSV=v=>{const s=String(v??'');return '"'+(/^[=+\-@\t\r]/.test(s)?"'"+s:s).replace(/"/g,'""')+'"';};
  const csv=rows=>'\uFEFF'+rows.map(r=>r.map(safeCSV).join(',')).join('\r\n');
@@ -108,12 +193,22 @@ export function createWizardTemplates({B,F,progress}) {
   if(e.target.closest('[data-template-save]')&&save(document.getElementById('wizard-template-name').value))manage();
   const use=e.target.closest('[data-template-apply]');if(use)apply(use.dataset.templateApply);
   const del=e.target.closest('[data-template-delete]');if(del){localStorage.setItem(key(),JSON.stringify(stored().filter(r=>r.id!==del.dataset.templateDelete)));manage();}
+  if(e.target.closest('[data-draft-save]'))void saveDraft();
+  if(e.target.closest('[data-drafts-resume]'))location.hash='#/'+B.state.portal+'/apply';
+  if(e.target.closest('[data-draft-delete]'))deleteDraft();
+  const remove=e.target.closest('[data-draft-delete-confirm]');if(remove){const id=remove.dataset.draftDeleteConfirm;removed.add(id);dirty.delete(id);drafts=drafts.filter(r=>r.id!==id);active='';B.close();void flush();F.resetWizard(B.wizard._documentSession);B.state.wiz={step:1,docs:{}};restoreNote='';if(drafts.some(r=>!r.state.done))void loadDraft(drafts.find(r=>!r.state.done).id);else B.render();}
   if(e.target.closest('[data-import-confirm]'))confirmImport();
   if(e.target.closest('[data-import-toggle]')){const next=!preview.rows.filter(r=>!r.fatal).every(r=>r.selected);preview.rows.forEach(r=>r.selected=next&&!r.fatal);showPreview();}
   if(e.target.closest('[data-import-errors]'))download('Azure-import-checks.csv',csv([['原始列','公司','待補欄位','檢查結果'],...preview.rows.map(r=>[r.line,r.name,r.missing,r.errors.join('；')])]),'text/csv;charset=utf-8');
   const out=e.target.closest('[data-export-format]');if(out){out.disabled=true;exportLayout(out.dataset.exportFormat,out.dataset.exportCurrent==='true').catch(err=>B.toast(E(err.message))).finally(()=>out.disabled=false);}
  });
  document.addEventListener('change',e=>{if(e.target.id==='wizard-draft-select')loadDraft(e.target.value);if(e.target.dataset.importRow&&preview){const row=preview.rows.find(r=>r.id===e.target.dataset.importRow);if(row)row.selected=e.target.checked;}});
+ const afterEdit=()=>queueMicrotask(()=>{if(B.state.page==='apply')changed();});
+ document.addEventListener('input',e=>{if(B.state.page==='apply'&&e.target.closest('.wizard-body,.kyc-form,[data-k],.form-grid'))afterEdit();});
+ document.addEventListener('change',e=>{if(B.state.page==='apply'&&e.target.id!=='wizard-draft-select'&&!e.target.closest('.modal'))afterEdit();});
+ document.addEventListener('click',e=>{if(B.state.page==='apply'&&e.target.closest('[data-demo-fill],[data-wizard-clear],[data-template-apply],[data-progress-go],.wizard-nav,[data-k]'))afterEdit();});
+ window.addEventListener('pagehide',()=>{if(ready&&B.state.page==='apply'){track();void flush();}},{capture:true});
+ document.addEventListener('visibilitychange',()=>{if(document.hidden&&ready&&B.state.page==='apply'){track();void flush();}});
  window.addEventListener('resize',enhance);
- return{enhance,save,apply,all,read,parseGrid,exportLayout,restart(){const state={step:1,company:'',email:'',phone:'',docs:{},ocr:null,running:false,done:null};const row=drafts.find(r=>r.id===active);if(row&&!row.state.done)row.state=state;else active='';B.state.wiz=state;},get drafts(){return drafts;},get columns(){return columns;},get preview(){return preview;},loadDraft};
+ return{enhance,save,apply,all,read,parseGrid,exportLayout,changed,saveDraft,flush,get ready(){return ready;},get storageScope(){return scope;},restart(){const state={step:1,company:'',email:'',phone:'',docs:{},ocr:null,running:false,done:null};const row=drafts.find(r=>r.id===active);if(row&&!row.state.done)row.state=state;else active='';B.state.wiz=state;},get drafts(){return drafts;},get columns(){return columns;},get preview(){return preview;},loadDraft};
 }
