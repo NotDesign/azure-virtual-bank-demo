@@ -49,12 +49,22 @@ export function createWizardTemplates({B,F,progress}) {
  const draftStore=createDraftStore();let scope='',ready=false,loading=false,loadBlocked=false,edited=false,restoreNote='',saveError=false,savedAt='',saving=0,epoch=0,selection=0,chain=Promise.resolve(),readyPromise=Promise.resolve();
  const dirty=new Set(),removed=new Set(),signatures=new Map();
  function draftScope(){const a=B.account;return a?.email?'account:'+JSON.stringify([a.role,a.id,a.email.toLowerCase()]):B.state.portal==='public'&&B.state.page==='apply'?'invitation:'+B.state.arg:'';}
+ // Draft restoration preserves manually entered rows/text; template/import caps do not truncate drafts.
+ function draftFields(raw){
+  const k=sanitize(raw);if(!raw||typeof raw!=='object')return k;
+  for(const key of Object.keys(k))if(key!=='emailOK'&&['string','number'].includes(typeof raw[key])&&!Array.isArray(k[key])&&typeof k[key]!=='object')k[key]=raw[key];
+  for(const key of ['reg','biz'])for(const part of ['country','prov','cn','en'])if(typeof raw[key]?.[part]==='string')k[key][part]=raw[key][part];
+  for(const key of ['dirs','sigs','ubos','buyers','sellers'])if(Array.isArray(raw[key]))k[key]=raw[key].map(row=>Object.fromEntries((['buyers','sellers'].includes(key)?['name','country','ccy','pct']:['name','first','last','idType','idNo','idExp','dob','nat','pct','same']).map(field=>[field,['string','number','boolean'].includes(typeof row?.[field])?row[field]:''])));
+  for(const key of ['recvC','payC','recvCcy','payCcy','custom'])if(Array.isArray(raw[key]))k[key]=raw[key].filter(v=>typeof v==='string');
+  k._ocr=raw._ocr&&typeof raw._ocr==='object'?Object.fromEntries(Object.entries(raw._ocr).filter(([key,v])=>!['__proto__','constructor','prototype'].includes(key)&&['number','string'].includes(typeof v))):{};
+  return k;
+ }
  function restoreState(raw,id){
-  const k=sanitize(raw.k);k.custom=Array.isArray(raw.k?.custom)?raw.k.custom.filter(v=>typeof v==='string').slice(0,40).map(v=>v.slice(0,5000)):[];k._ocr=raw.k?._ocr&&typeof raw.k._ocr==='object'?Object.fromEntries(Object.entries(raw.k._ocr).filter(([key,v])=>!['__proto__','constructor','prototype'].includes(key)&&['number','string'].includes(typeof v))):{};
+  const k=draftFields(raw.k);
   return {step:Math.max(1,Math.min(5,Number.isInteger(raw.step)?raw.step:1)),company:k.cn||k.en||'',contact:k.contact||'',email:k.email||'',phone:k.phone||'',k,docs:{},accounts:accountIndices(Array.isArray(raw.products)?raw.products:[]),identity:null,agreed:false,ocr:raw.ocr?.reviewed?{reviewed:true}:null,demoSteps:Array.isArray(raw.demoSteps)?raw.demoSteps.filter(n=>[1,3,4].includes(n)):[],_documentSession:id};
  }
  function packed(row){
-  const w=row.state,k=sanitize(w.k);k.custom=Array.isArray(w.k?.custom)?w.k.custom.filter(v=>typeof v==='string').slice(0,40).map(v=>v.slice(0,5000)):[];k._ocr=w.k?._ocr||{};
+  const w=row.state,k=draftFields(w.k);
   const files=F.draftFiles(w._documentSession,w.k);k.extra=Object.fromEntries([...new Set(files.filter(f=>f.kind==='extra').map(f=>f.key))].map(key=>[key,w.k.extra[key]]));
   return {id:row.id,name:row.name,state:{step:w.step,k,products:productIds(w),ocr:w.ocr?.reviewed?{reviewed:true}:null,demoSteps:w.demoSteps||[]},files};
  }
