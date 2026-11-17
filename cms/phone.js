@@ -1,4 +1,4 @@
-import {mountMockIdentityPhone} from './mock-identity-phone.js?v=20261117-kyc-methods';
+import {mountMockIdentityPhone} from './mock-identity-phone.js?v=20261117-kyc-simple';
 import {LocalCamera,readIdentityLink,returnCode} from './identity.js';
 import {createTranslator} from './i18n.js?v=20261019-camera';
 const E=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
