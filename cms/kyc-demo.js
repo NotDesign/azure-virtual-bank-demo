@@ -4,8 +4,8 @@ export const MOCK_DOCUMENTS=['hkid','passport','cnid'];
 export const MOCK_OUTCOMES=['success','failed','review','cancelled'];
 export function readMockIdentityLink(url=location.href){
  const hash=new URL(url,'https://demo.invalid').hash;
- const match=hash.match(/^#\/identity\/([a-f0-9-]{36})\/(iam-smart|document)\/(\d+)$/),expiry=Number(match?.[3]);
- return {token:match?.[1],method:match?.[2],expiry,valid:!!match&&expiry>Date.now()&&expiry<=Date.now()+660000};
+ const match=hash.match(/^#\/identity\/([a-f0-9-]{36})\/(iam-smart|document)\/(\d+)(?:\?doc=(hkid|passport|cnid))?$/),expiry=Number(match?.[3]);
+ return {token:match?.[1],method:match?.[2],documentType:match?.[2]==='iam-smart'?'hkid':match?.[4]||'hkid',expiry,valid:!!match&&expiry>Date.now()&&expiry<=Date.now()+660000};
 }
 // A Demo result code, deliberately public and deterministic; never a production credential.
 export function mockCompletionCode(token,method,status){
