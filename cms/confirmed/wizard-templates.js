@@ -61,12 +61,12 @@ export function createWizardTemplates({B,F,progress}) {
  }
  function restoreState(raw,id){
   const k=draftFields(raw.k);
-  return {step:Math.max(1,Math.min(5,Number.isInteger(raw.step)?raw.step:1)),company:k.cn||k.en||'',contact:k.contact||'',email:k.email||'',phone:k.phone||'',k,docs:{},accounts:accountIndices(Array.isArray(raw.products)?raw.products:[]),identity:null,agreed:false,ocr:raw.ocr?.reviewed?{reviewed:true}:null,demoSteps:Array.isArray(raw.demoSteps)?raw.demoSteps.filter(n=>[1,3,4].includes(n)):[],_documentSession:id};
+  return {step:Math.max(1,Math.min(5,Number.isInteger(raw.step)?raw.step:1)),company:k.cn||k.en||'',contact:k.contact||'',email:k.email||'',phone:k.phone||'',k,docs:{},accounts:accountIndices(Array.isArray(raw.products)?raw.products:[]),identity:null,agreed:false,kycMethod:['iam-smart','document'].includes(raw.kycMethod)?raw.kycMethod:'document',kycDocumentType:['hkid','passport','cnid'].includes(raw.kycDocumentType)?raw.kycDocumentType:'hkid',ocr:raw.ocr?.reviewed?{reviewed:true}:null,demoSteps:Array.isArray(raw.demoSteps)?raw.demoSteps.filter(n=>[1,3,4].includes(n)):[],_documentSession:id};
  }
  function packed(row){
   const w=row.state,k=draftFields(w.k);
   const files=F.draftFiles(w._documentSession,w.k);k.extra=Object.fromEntries([...new Set(files.filter(f=>f.kind==='extra').map(f=>f.key))].map(key=>[key,w.k.extra[key]]));
-  return {id:row.id,name:row.name,state:{step:w.step,k,products:productIds(w),ocr:w.ocr?.reviewed?{reviewed:true}:null,demoSteps:w.demoSteps||[]},files};
+  return {id:row.id,name:row.name,state:{step:w.step,k,products:productIds(w),kycMethod:w.kycMethod||'document',kycDocumentType:w.kycDocumentType||'hkid',ocr:w.ocr?.reviewed?{reviewed:true}:null,demoSteps:w.demoSteps||[]},files};
  }
  function saveStatus(){
   return B.state.page==='apply'&&B.wizard.done?T('此筆已提交，未完成草稿已保留。','此笔已提交，未完成草稿已保留。','This draft was submitted. Unfinished drafts remain available.'):loading?T('正在恢復草稿…','正在恢复草稿…','Restoring drafts…'):saveError?T('未能儲存，資料仍在此頁；請重試。','未能储存，资料仍在此页；请重试。','Not saved. Your edits remain on this page; retry saving.'):saving?T('正在儲存…','正在储存…','Saving…'):savedAt?T('已儲存於此瀏覽器 · ','已储存于此浏览器 · ','Saved in this browser · ')+new Date(savedAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'}):T('自動儲存於此瀏覽器，依登入帳號分開。','自动储存于此浏览器，按登录账号分开。','Autosaved in this browser, separately for each account.');

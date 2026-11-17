@@ -7,7 +7,7 @@ export function createWizardProgress({B,F,labels}) {
   const checks=B.checks(k,'cust').map(x=>({...x,key:x.p}));
   const pages=[
    {step:1,items:[{key:'upload',label:text('加入至少一份文件','加入至少一份文件','Add at least one document'),done:files.length>0}],hint:text(`已加入 ${files.length} 份；已人工核對 ${files.filter(f=>f.status==='已人工核對').length} 份。可先繼續填寫，辨識結果需人工核對。`,`已加入 ${files.length} 份；已人工核对 ${files.filter(f=>f.status==='已人工核對').length} 份。可先继续填写，识别结果需人工核对。`,`${files.length} added; ${files.filter(f=>f.status==='已人工核對').length} reviewed. Continue completing the form; recognition results need human review.`)},
-   {step:2,items:[{key:'identity',label:F.uploadedIdentity()?text('完成手機人像確認','完成手机人像确认','Complete phone portrait capture'):text('完成證件正反面與人像確認','完成证件正反面与人像确认','Complete ID front, back and portrait capture'),done:!!w.identity?.confirmed}],hint:w.identity?.simulated?text('使用 Demo 模擬完成狀態。','使用 Demo 模拟完成状态。','Completed using Demo simulation.'):''},
+   {step:2,items:[{key:'identity',label:w.kycMethod==='iam-smart'?text('完成智方便認證（模擬）','完成智方便认证（模拟）','Complete iAM Smart verification (Demo)'):text('完成證件與人像認證（模擬）','完成证件与人像认证（模拟）','Complete document and face verification (Demo)'),done:window.AzureWizard?.kyc?.valid()??!!w.identity?.confirmed}],hint:w.identity?.simulated?text('此步為模擬認證；公司盡職審查另行處理。','此步为模拟认证；公司尽职审查另行处理。','Demo identity verification. Company due diligence is handled separately.'):''},
    {step:3,items:checks},
    {step:4,items:[{key:'accounts',label:text('選擇至少一個可申請帳戶','选择至少一个可申请账户','Select at least one available account'),done:validAccounts.length>0}]},
    {step:5,items:[{key:'terms',label:text('確認聲明與條款','确认声明与条款','Confirm the declaration and terms'),done:!!w.agreed}]}

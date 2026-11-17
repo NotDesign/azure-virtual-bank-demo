@@ -1,3 +1,4 @@
+import {mountMockIdentityPhone} from './mock-identity-phone.js?v=20261117-kyc-methods';
 import {LocalCamera,readIdentityLink,returnCode} from './identity.js';
 import {createTranslator} from './i18n.js?v=20261019-camera';
 const E=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -9,6 +10,7 @@ const CAMERA_ICONS={
  open:cameraIcon('<path d="M20 7v5h-5M4 17v-5h5M6.1 6.1A8 8 0 0 1 20 12M4 12a8 8 0 0 0 13.9 5.9"/>')
 };
 export function mountPhone({root,locale='zh-Hant',onExit,onLocale}){
+ if(/^#\/identity\/[^/]+\/(iam-smart|document)\//.test(location.hash))return mountMockIdentityPhone({root,locale,onExit,onLocale});
  let tr=createTranslator(locale),stage='consent',consented=false,photo=null,finished=false,destroyed=false;const camera=new LocalCamera(),abort=new AbortController();
  let cameraBusy=false,cameraAction=0;
  const q=sel=>root.querySelector(sel),button=(label,action,primary=false)=>`<button type="button" class="cms-button ${primary?'cms-button-primary':''}" data-phone="${action}">${E(tr(label))}</button>`;

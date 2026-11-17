@@ -93,7 +93,7 @@ async function renderIntegrated(mode){
  }
  if(cmsInstance&&cmsMode===mode){cmsInstance.setLocale(locale);return;}
  pauseIntegrated();const version=++cmsLoading;cmsMode=mode;transientHost=document.createElement('div');$('#cms-host').append(transientHost);
- try{if(mode==='phone'){const {mountPhone}=await import('./cms/phone.js?v=20261019-camera');if(version!==cmsLoading)return;cmsInstance=mountPhone({root:transientHost,locale,onExit:()=>{history.replaceState({},'',location.pathname+location.search);go(state.verified===2?'workspace':'login')},onLocale:lang=>{locale=lang;}});}else{const {mountCMS}=await import('./cms/app.js?v=20261112-system-review');if(version!==cmsLoading)return;cmsInstance=mountCMS({root:transientHost,account:null,publicRoute:location.hash,locale,onLocale:setLanguage,onActivity:()=>{}});}}
+ try{if(mode==='phone'){const {mountPhone}=await import('./cms/phone.js?v=20261117-kyc-methods');if(version!==cmsLoading)return;cmsInstance=mountPhone({root:transientHost,locale,onExit:()=>{history.replaceState({},'',location.pathname+location.search);go(state.verified===2?'workspace':'login')},onLocale:lang=>{locale=lang;}});}else{const {mountCMS}=await import('./cms/app.js?v=20261112-system-review');if(version!==cmsLoading)return;cmsInstance=mountCMS({root:transientHost,account:null,publicRoute:location.hash,locale,onLocale:setLanguage,onActivity:()=>{}});}}
  catch(error){console.error('CMS initialization failed',error);pauseIntegrated();$('.shell').classList.remove('auth-hidden');$('#cms-host').hidden=true;go('network');}
 }
 const view=$('#view');
