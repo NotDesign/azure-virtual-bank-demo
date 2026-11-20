@@ -4,6 +4,8 @@
 
 ## 啟動與修改
 
+在交付包內請先 `cd source` 再執行以下 npm 指令。若只需操作 Demo，回到交付包根目錄雙擊 `START.command`（macOS）或 `START.bat`（Windows）；啟動後會自動開啟瀏覽器。直接開啟 `demo/index.html` 會顯示啟動說明，完整流程必須使用 HTTP 網址。
+
 - Node.js 20 或以上；建議使用 Node.js 24。
 - `npm start`：啟動原始碼，網址 `http://127.0.0.1:3192/`。沒有安裝依賴亦可啟動及建置；既有 vendor 已放入原始碼。
 - `npm run build`：產生 `dist/`。修改 `source/`，不要直接改交付包的 `demo/`。
