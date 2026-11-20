@@ -18,17 +18,17 @@ function hash(s) { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) 
 
 // ---------- application detail ----------
 PAGES['*:app'] = () => {
-  const a = APPLICATIONS.find((x) => x.id === S.arg); if (!a) return '<div class="empty">申请不存在</div>';
+  const a = appsInScope().find((x) => x.id === S.arg); if (!a) return '<div class="empty">申请不存在</div>';
   const P = S.portal, isHQ = P === 'hq';
-  const flow = ['OCR 中', '待 CS 补录', '待合规审核', '待董事验证', '渠道审核中', '已开通'];
+  const flow = ['OCR 中', '待 CS 补录', '待合规审核', '待董事验证', '渠道审核中', '渠道审核通过', '已开通'];
   const idx = a.status === '待补件' ? 1 : a.status === '渠道驳回' ? 4 : flow.indexOf(a.status);
   const stepper = `<div class="steps">${flow.map((s, i) => `<div class="step ${i < idx ? 'done' : i === idx ? 'on' : ''}"><span class="dot">${i < idx ? '✓' : i + 1}</span>${s}</div>`).join('')}</div>`;
   const ocr = ocrFor(a.company);
   const doc = S.ui.doc || 'BR';
-  const tl = [['申请创建', a.created + ' · ' + a.src, true], ['文件上传 + OCR', a.docs + '/7 份文件', idx >= 1], ['CS 核对与补录', isHQ ? 'CS：Amy' : '平台客服', idx >= 2], ['合规审核', isHQ ? '制裁筛查、UBO、风险评级' : '平台合规', idx >= 3], ['董事实人验证', 'eKYC 链接发至董事电邮', idx >= 4], ['提交 Allinpay', 'regcus → mer/create → va/apply', idx >= 4], ['账户开通', '收取开户费、通知客户和代理', idx >= 5]];
+  const tl = [['申请创建', a.created + ' · ' + a.src, true], ['文件上传 + OCR', a.docs + '/7 份文件', idx >= 1], ['CS 核对与补录', isHQ ? 'CS：Amy' : '平台客服', idx >= 2], ['合规审核', isHQ ? '制裁筛查、UBO、风险评级' : '平台合规', idx >= 3], ['董事实人验证', 'eKYC 链接发至董事电邮', idx >= 4], ['提交 Allinpay', 'regcus → mer/create → va/apply', idx >= 4], ['账户开通', '模擬戶口開通回覆；沒有實際收費或通知', idx >= 6]];
   const timeline = `<div class="card"><div class="card-head"><h3 class="card-title">进度</h3>${statusBadge(a.status)}</div><div class="card-pad"><ul class="timeline">${tl.map(([t, d, done], i) => `<li class="${done ? 'done' : ''} ${i === Math.max(0, idx + 1) && !done ? 'cur' : ''}"><div class="bold">${t}</div><div class="small muted">${d}</div></li>`).join('')}</ul></div></div>`;
   const info = `<div class="card"><div class="card-head"><h3 class="card-title">申请信息</h3></div><div class="card-pad"><dl class="kv"><dt>申请号</dt><dd class="mono">${a.id}</dd><dt>来源</dt><dd>${a.src}</dd><dt>归属</dt><dd>${a.owner ? agent(a.owner).name + (a.l2 ? ' → ' + agent(a.l2).name : '') : '自营'}</dd><dt>费率模板</dt><dd>${a.owner ? agent(a.owner).name.slice(0, 3) + '标准价' : '自营标准价'}</dd><dt>申请账户</dt><dd>渣打（香港）VA · HKD/USD/CNH/EUR</dd></dl></div></div>`;
-  const actions = { 'OCR 中': ['完成识别，进入 CS 补录', '待 CS 补录'], '待 CS 补录': ['提交合规审核', '待合规审核'], '待补件': ['补件已收到，继续补录', '待 CS 补录'], '待合规审核': ['合规通过，发送董事验证', '待董事验证'], '待董事验证': ['模拟：董事完成验证 → 提交 Allinpay', '渠道审核中'], '渠道审核中': ['模拟：Allinpay 回调审核通过', '已开通'] }[a.status];
+  const actions = { 'OCR 中': ['完成识别，进入 CS 补录', '待 CS 补录'], '待 CS 补录': ['提交合规审核', '待合规审核'], '待补件': ['补件已收到，继续补录', '待 CS 补录'], '待合规审核': ['合规通过，发送董事验证', '待董事验证'], '待董事验证': ['模拟：董事完成验证 → 提交 Allinpay', '渠道审核中'], '渠道审核通过': ['模擬戶口開通回覆', '已开通'], '渠道驳回': ['重新整理資料', '待 CS 补录'] }[a.status];
 
   let work = '';
   if (isHQ && ['OCR 中', '待 CS 补录', '待补件'].includes(a.status)) {
@@ -38,45 +38,64 @@ PAGES['*:app'] = () => {
       <div class="card-pad grid" style="grid-template-columns:180px minmax(0,1fr) minmax(0,1.1fr);align-items:start">
         <div class="doc-list">${DOC_TYPES.map(([k, l], i) => `<div class="doc-item ${k === doc ? 'on' : ''}" onclick="setUI('doc','${k}')"><div class="fi">${i < a.docs ? 'PDF' : '缺'}</div><div style="min-width:0"><div class="small bold">${l}</div><div class="small ${i < a.docs ? 'muted' : 'down'}">${i < a.docs ? '已上传 · 已识别' : '未上传'}</div></div></div>`).join('')}</div>
         <div class="doc-preview">${docPreview(doc, a, ocr)}</div>
-        <div><div class="bold" style="margin-bottom:8px">${DOC_TYPES.find((d) => d[0] === doc)[1]} · OCR 结果</div>${fields.map(([k, v, c]) => `<div class="ocr-row"><label>${k}</label><input class="input ${c < .85 ? 'lowconf' : ''}" value="${v}"/><span class="conf ${c < .85 ? 'lo' : 'hi'}">${Math.round(c * 100)}%</span></div>`).join('')}<div class="mt">${crossWarn}</div></div>
+        <div><div class="bold" style="margin-bottom:8px">${DOC_TYPES.find((d) => d[0] === doc)[1]} · OCR 结果</div>${fields.map(([k, v, c]) => `<div class="ocr-row"><label>${k}</label><input class="input ${c < .85 ? 'lowconf' : ''}" value="${esc(v)}"/><span class="conf ${c < .85 ? 'lo' : 'hi'}">${Math.round(c * 100)}%</span></div>`).join('')}<div class="mt">${crossWarn}</div></div>
       </div></div>
       <div class="card mt"><div class="card-head"><h3 class="card-title">CS 补录 · 开户资料</h3><span class="card-sub">客户已填的资料 + OCR 结果；字段与 Allinpay 进件对齐，CS 补齐后提交合规</span></div><div class="card-pad">${kycForm(kycOf(a), 'cs')}</div></div>`;
   } else if (isHQ && a.status === '待合规审核') {
     work = `<div class="card"><div class="card-head"><h3 class="card-title">合规审核</h3></div><div class="card-pad grid g2">
       <div><div class="bold">制裁名单筛查</div><table class="mt"><tbody><tr><td>公司</td><td>${statusBadge('成功')} 无命中</td></tr><tr><td>王志明</td><td>${statusBadge('成功')} 无命中</td></tr><tr><td>李美华</td><td>${statusBadge('成功')} 无命中</td></tr><tr><td>负面新闻</td><td><span class="badge warn">1 条待复核</span></td></tr></tbody></table></div>
       <div><div class="bold">UBO 穿透（> 25%）</div><table class="mt"><tbody><tr><td>王志明</td><td class="r">60%</td><td>${statusBadge('已审核')}</td></tr><tr><td>李美华</td><td class="r">40%</td><td>${statusBadge('已审核')}</td></tr></tbody></table>
-      <div class="field mt"><label>风险评级</label><select class="select"><option>低</option><option selected>中</option><option>高</option></select></div></div>
-      <div class="field full" style="grid-column:1/-1"><label>合规意见（内部，代理看不到）</label><textarea class="input">业务真实性已核实。负面新闻为同名人士，已排除。</textarea></div></div></div>`;
-  } else if (a.status === '待董事验证' || a.status === '渠道审核中' || a.status === '已开通') {
-    work = `<div class="card"><div class="card-head"><h3 class="card-title">${a.status === '待董事验证' ? '董事实人验证' : '渠道提交记录'}</h3></div><div class="card-pad">
-      <table><thead><tr><th>时间</th><th>步骤</th><th>说明</th><th>结果</th></tr></thead><tbody>
-      <tr><td>10-11 15:02</td><td>发送 eKYC 链接</td><td>王志明、李美华（电邮 + 短信）</td><td>${statusBadge(idx >= 4 ? '成功' : '处理中')}</td></tr>
-      ${idx >= 4 ? `<tr><td>10-12 09:40</td><td class="mono">/file/upload</td><td>7 份文件</td><td>${statusBadge('成功')}</td></tr><tr><td>10-12 09:41</td><td class="mono">/entity/regcus</td><td>企业进件</td><td>${statusBadge('成功')}</td></tr><tr><td>10-12 09:41</td><td class="mono">/mer/create</td><td>子商户</td><td>${statusBadge('成功')}</td></tr><tr><td>10-12 09:42</td><td class="mono">/va/apply</td><td>渣打 VA · 4 币种</td><td>${statusBadge(idx >= 5 ? '成功' : '处理中')}</td></tr>` : ''}
-      </tbody></table></div></div>`;
+      <div class="field mt"><label>风险评级</label><select class="select" id="compliance-risk">${['低','中','高'].map(v=>`<option ${v===(a.internalReview?.risk||a.risk||'中')?'selected':''}>${v}</option>`).join('')}</select></div></div>
+      <div class="field full" style="grid-column:1/-1"><label>合规意见（内部，代理看不到）</label><textarea class="input" id="compliance-note">${esc(a.internalReview?.note||'')}</textarea></div></div></div>`;
+  } else if (['待董事验证','渠道审核中','渠道审核通过','已开通'].includes(a.status)) {
+    work = `<div class="card"><div class="card-head"><h3 class="card-title">${a.status === '待董事验证' ? '董事实人验证' : '渠道進件狀態'}</h3></div><div class="card-pad"><dl class="kv"><dt>申請狀態</dt><dd>${statusBadge(a.status)}</dd><dt>申請用途</dt><dd>${a.purpose==='additional-account'?'既有客戶追加戶口':'企業戶口申請'}</dd><dt>渠道審核</dt><dd>${a.channelReview?.label?esc(a.channelReview.label):'尚未收到外部審單回覆'}</dd><dt>戶口開通</dt><dd>${a.accountOpeningResult?.status==='simulated_opened'?'已收到模擬開通結果':'等待戶口開通結果'}</dd></dl>${note('此處為操作示範；渠道審核通過與銀行戶口開通是不同階段，沒有呼叫真實渠道、收費或發送通知。')}</div></div>`;
   } else {
     work = `<div class="card card-pad"><div class="bold">文件</div><div class="doc-list mt">${DOC_TYPES.map(([k, l], i) => `<div class="doc-item"><div class="fi">${i < a.docs ? 'PDF' : '缺'}</div><div><div class="small bold">${l}</div><div class="small ${i < a.docs ? 'muted' : 'down'}">${i < a.docs ? '已上传' : '需要补交'}</div></div>${i >= a.docs && a.status === '待补件' ? `<button class="btn sm" style="margin-left:auto" onclick="toast('已上传，平台 CS 会继续处理')">${ICON.up} 上传</button>` : ''}</div>`).join('')}</div>
       ${a.status === '待补件' ? note('平台要求补交：董事身份证件（背面）、地址证明（3 个月内）。', 'warn') : ''}${a.status === '渠道驳回' ? note('Allinpay 驳回原因：经营场所照片与登记地址不一致。请联系平台 CS。', 'warn') : ''}</div>`;
   }
-  const btns = isHQ && actions ? `<button class="btn" onclick="supplementReq('${a.id}')">发补件通知</button><button class="btn" onclick="toast('已保存')">保存</button><button class="btn primary" onclick="advanceApp('${a.id}','${actions[1]}')">${actions[0]}</button>` : '';
-  return head(a.company, `${a.id} · ${a.src}`, btns, `<a href="#/${P}/apps">${P === 'hq' ? '开户申请工作台' : '申请进度'}</a> / ${a.id}`) +
+  const btns = isHQ ? `${['待 CS 补录','待合规审核','待董事验证'].includes(a.status)?`<button class="btn" onclick="supplementReq('${a.id}')">发补件通知</button>`:''}${actions?`<button class="btn" onclick="saveAppReview('${a.id}')">保存</button><button class="btn primary" onclick="advanceApp('${a.id}','${actions[1]}')">${actions[0]}</button>`:''}${a.status==='渠道审核中'?`<button class="btn primary" onclick="AzureExternalReview.open('${a.id}')">外部審單</button>`:''}` : '';
+  work += window.AzureExternalReview?.panel(a.id)||'';
+  return head(esc(a.company), `${a.id} · ${a.src}`, btns, `<a href="#/${P}/apps">${P === 'hq' ? '开户申请工作台' : '申请进度'}</a> / ${a.id}`) +
     `<div class="card">${stepper}</div><div class="grid mt" style="grid-template-columns:minmax(0,3fr) minmax(260px,1fr);align-items:start"><div>${work}</div><div class="grid">${info}${timeline}</div></div>`;
 };
 function docPreview(doc, a, ocr) {
   const f = ocr[doc];
   if (doc === 'SITE') return `<h4>经营场所照片</h4><div class="sub">门头 1 张 + 内部 2 张</div><div class="grid g3">${['门头', '办公区', '仓库'].map((x) => `<div style="aspect-ratio:4/3;background:linear-gradient(135deg,#d9d4c7,#b9b2a2);border-radius:4px;display:grid;place-items:center;color:#555;font-size:12px">${x}</div>`).join('')}</div>`;
   const titles = { BR: ['商業登記證', 'BUSINESS REGISTRATION CERTIFICATE'], CR: ['公司註冊證明書', 'CERTIFICATE OF INCORPORATION'], NAR1: ['周年申報表', 'ANNUAL RETURN · FORM NAR1'], ID1: ['香港永久性居民身份證', 'HONG KONG PERMANENT IDENTITY CARD'], ID2: ['香港永久性居民身份證', 'HONG KONG PERMANENT IDENTITY CARD'], ADDR: ['地址證明', 'PROOF OF ADDRESS · UTILITY BILL'] }[doc];
-  return `<h4>${titles[0]}</h4><div class="sub">${titles[1]}</div>${f.map(([k, v, c]) => `<div class="row"><span>${k}</span><span class="${c < .85 ? 'hl' : ''}">${v}</span></div>`).join('')}<div class="stamp">示例文件<br/>SAMPLE</div>`;
+  return `<h4>${titles[0]}</h4><div class="sub">${titles[1]}</div>${f.map(([k, v, c]) => `<div class="row"><span>${k}</span><span class="${c < .85 ? 'hl' : ''}">${esc(v)}</span></div>`).join('')}<div class="stamp">示例文件<br/>SAMPLE</div>`;
 }
-function advanceApp(id, to) {
-  const a = APPLICATIONS.find((x) => x.id === id);
-  if (to === '待合规审核' && window.APP_KYC && APP_KYC[id]) { const I = kycIssues(APP_KYC[id], 'cs'); if (I.length) { S.kfErr = new Set(I.map((x) => x.p)); render(); toast(`开户资料还有 ${I.length} 项未完成，已标红`); const el = document.getElementById('ks-' + I[0].sec); el && el.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; } S.kfErr = null; } a.status = to; if (to !== '待 CS 补录') a.docs = Math.max(a.docs, 7);
-  const msg = { '待合规审核': '已提交合规审核', '待董事验证': '合规通过，已向董事发送实人验证链接', '渠道审核中': '董事已完成验证，已提交 Allinpay（regcus → mer/create → va/apply）', '已开通': '账户已开通，已通知客户和代理；开户费由 Allinpay 扣收', '待 CS 补录': '已进入 CS 补录' }[to];
-  toast(msg || '已更新'); render();
+function canEditApplication(id){return window.AzureBridge?.account?.role==='hq'&&S.portal==='hq'&&appsInScope().some(a=>a.id===id);}
+function applicationChanged(a,source='backoffice'){a.revision=(Number.isInteger(a.revision)?a.revision:1)+1;window.dispatchEvent(new CustomEvent('azure:application-changed',{detail:{applicationId:a.id,revision:a.revision,status:a.status,source}}));}
+function saveAppReview(id,quiet=false){
+ if(!canEditApplication(id))return false;const a=APPLICATIONS.find(x=>x.id===id),risk=document.getElementById('compliance-risk'),note=document.getElementById('compliance-note');
+ if(risk||note){a.internalReview={risk:risk?.value||a.risk||'—',note:(note?.value||'').trim().slice(0,5000),at:Date.now()};a.risk=a.internalReview.risk;}
+ if(!quiet){applicationChanged(a,'backoffice-save');toast('本機模擬資料已保存');render();}return true;
 }
-function supplementReq(id) {
-  modal('发补件通知', `<div class="field"><label>需要补交的文件</label>${DOC_TYPES.map(([k, l]) => `<label style="display:flex;gap:8px;align-items:center;margin-top:6px"><input type="checkbox" ${k === 'ID1' || k === 'ADDR' ? 'checked' : ''}/> ${l}</label>`).join('')}</div>
-    <div class="field"><label>说明（发给客户和代理）</label><textarea class="input">请补交董事身份证背面，以及 3 个月内的地址证明。</textarea></div>${note('客户和代理会收到电邮，链接直接回到上传页。')}`,
-    `<button class="btn" onclick="closeModal()">取消</button><button class="btn primary" onclick="closeModal();advanceApp('${id}','待补件')">发送</button>`);
+function restoreSimulatedOpenedAccounts(a){
+ if(!canEditApplication(a?.id)||APPLICATIONS.find(x=>x.id===a.id)!==a||a.status!=='已开通')return;
+ if(a.accountOpeningResult?.status!=='simulated_opened')return;const customerId=a.customerId||a.custId;if(!cust(customerId))return;
+ for(const id of a.productIds||a.products||[]){const p=ACCOUNT_PRODUCTS.find(p=>p.id===id);if(!p)continue;for(const ccy of p.ccys){if(ACCOUNTS.some(x=>x.cust===customerId&&x.ap===id&&x.ccy===ccy))continue;ACCOUNTS.push({cust:customerId,nick:p.bank+' '+ccy,region:p.region,bg:cust(customerId).bg,ccy,bank:p.bank,no:'DEMO-'+a.id+'-'+ccy,status:'正常',ap:id,applicationId:a.id,demoOnly:true});}}
+}
+function advanceApp(id,to){
+ if(!canEditApplication(id))return toast('沒有此申請的操作權限');const a=APPLICATIONS.find(x=>x.id===id);
+ const allowed={'OCR 中':['待 CS 补录'],'待 CS 补录':['待合规审核'],'待补件':['待 CS 补录'],'待合规审核':['待董事验证'],'待董事验证':['渠道审核中'],'渠道审核通过':['已开通'],'渠道驳回':['待 CS 补录']};
+ if(!allowed[a.status]?.includes(to))return toast('此狀態不能直接跳轉，請依審核流程處理');
+ if(to==='待合规审核'){
+  if(!window.APP_KYC?.[id])return toast('缺少已核對的申請資料');const issues=kycIssues(APP_KYC[id],'cs');
+  if(issues.length){S.kfErr=new Set(issues.map(x=>x.p));render();toast(`开户资料还有 ${issues.length} 项未完成，已标红`);document.getElementById('ks-'+issues[0].sec)?.scrollIntoView({behavior:'smooth',block:'start'});return;}S.kfErr=null;
+ }
+ saveAppReview(id,true);a.status=to;
+ if(to==='已开通'){a.accountOpeningResult={status:'simulated_opened',at:Date.now(),productIds:[...(a.productIds||a.products||[])]};restoreSimulatedOpenedAccounts(a);a.accountOpeningResult.accounts=ACCOUNTS.filter(x=>x.applicationId===a.id).map(x=>x.no);}
+ applicationChanged(a);toast({'待合规审核':'已提交本機模擬合規審核','待董事验证':'已進入模擬董事驗證','渠道审核中':'已準備外部審單，請建立本次指派連結','已开通':'已記錄模擬戶口開通回覆，沒有呼叫真實銀行','待 CS 补录':'已進入資料補錄'}[to]||'已更新');render();
+}
+function supplementReq(id){
+ if(!canEditApplication(id))return toast('沒有此申請的操作權限');const a=APPLICATIONS.find(x=>x.id===id);if(!['待 CS 补录','待合规审核','待董事验证'].includes(a.status))return toast('請依目前審核階段處理');
+ modal('發出補件要求',`<div class="field"><label>需要補交的文件</label>${DOC_TYPES.map(([k,l])=>`<label style="display:flex;gap:10px;align-items:center;margin-top:8px"><input type="checkbox" name="supplement-document" value="${esc(l)}" ${k==='ID1'||k==='ADDR'?'checked':''}>${l}</label>`).join('')}</div><div class="field"><label for="supplement-reason">說明（申請人／代理可見）</label><textarea class="input" id="supplement-reason">請補交董事身分證背面及地址證明。</textarea></div>${note('此 Demo 只記錄補件要求，不會實際發送電郵。')}`,`<button class="btn" onclick="closeModal()">取消</button><button class="btn primary" onclick="saveSupplementRequest('${id}')">儲存補件要求</button>`);
+}
+function saveSupplementRequest(id){
+ if(!canEditApplication(id))return;const a=APPLICATIONS.find(x=>x.id===id);if(!['待 CS 补录','待合规审核','待董事验证'].includes(a.status))return;
+ const documents=[...document.querySelectorAll('[name=supplement-document]:checked')].map(x=>x.value),reason=(document.getElementById('supplement-reason')?.value||'').trim().slice(0,1200);if(!documents.length||!reason)return toast('請選擇文件並填寫補件說明');
+ a.supplementRequest={documents,reason,at:Date.now(),source:'platform'};a.status='待补件';applicationChanged(a);closeModal();toast('已儲存本機模擬補件要求');render();
 }
 
 // ---------- apply wizard ----------
@@ -105,7 +124,7 @@ function applyWizard(ctx) {
   if (w.step === 1) body = `<div class="form-grid"><div class="field full"><label>公司名称（中文或英文）</label><input class="input" value="${w.company}" placeholder="例：海韵贸易有限公司" oninput="wizSet('company',this.value)"/></div><div class="field"><label>联系人电邮（用于登录和通知）</label><input class="input" type="email" value="${w.email}" placeholder="finance@company.com" oninput="wizSet('email',this.value)"/></div><div class="field"><label>联系电话</label><input class="input" value="${w.phone}" placeholder="+852" oninput="wizSet('phone',this.value)"/></div><div class="field full"><label>归属（自动带入，不能修改）</label><input class="input" disabled value="${ownerName}"/></div></div>`;
   else if (w.step === 2) body = `${note('支持 PDF / JPG / PNG。上传后系统会自动识别内容。')}<div class="doc-list">${DOC_TYPES.map(([k, l]) => `<div class="doc-item"><div class="fi">${w.docs[k] ? 'PDF' : '—'}</div><div style="min-width:0"><div class="bold small">${l}</div><div class="small muted">${w.docs[k] || '未上传'}</div></div><button class="btn sm" style="margin-left:auto" onclick="wizUpload('${k}')">${w.docs[k] ? '重新上传' : ICON.up + ' 上传'}</button></div>`).join('')}</div><button class="btn ghost" onclick="DOC_TYPES.forEach(([k])=>wiz().docs[k]=k.toLowerCase()+'_scan.pdf');render()">一键上传示例文件</button>`;
   else if (w.step === 3) body = !w.ocr ? `<div class="empty">${w.running ? '<div class="bold">正在识别 ' + Object.keys(w.docs).length + ' 份文件…</div><div class="small muted mt">BR、CR、NAR1、身份证件</div>' : `<button class="btn primary" onclick="wizOCR()">开始 OCR 识别</button><div class="small muted mt">识别结果需要你确认；平台 CS 也会再核对</div>`}</div>`
-    : `${note('黄色字段的识别置信度较低，请核对。')}<div class="grid g2">${['BR', 'CR', 'NAR1', 'ID1'].map((k) => `<div class="card card-pad"><div class="bold" style="margin-bottom:6px">${DOC_TYPES.find((d) => d[0] === k)[1]}</div>${w.ocr[k].map(([n, v, c]) => `<div class="ocr-row" style="grid-template-columns:96px 1fr 44px"><label>${n}</label><input class="input ${c < .85 ? 'lowconf' : ''}" value="${v}"/><span class="conf ${c < .85 ? 'lo' : 'hi'}">${Math.round(c * 100)}%</span></div>`).join('')}</div>`).join('')}</div>`;
+    : `${note('黄色字段的识别置信度较低，请核对。')}<div class="grid g2">${['BR', 'CR', 'NAR1', 'ID1'].map((k) => `<div class="card card-pad"><div class="bold" style="margin-bottom:6px">${DOC_TYPES.find((d) => d[0] === k)[1]}</div>${w.ocr[k].map(([n, v, c]) => `<div class="ocr-row" style="grid-template-columns:96px 1fr 44px"><label>${n}</label><input class="input ${c < .85 ? 'lowconf' : ''}" value="${esc(v)}"/><span class="conf ${c < .85 ? 'lo' : 'hi'}">${Math.round(c * 100)}%</span></div>`).join('')}</div>`).join('')}</div>`;
   else if (w.step === 4) body = `<div class="form-grid"><div class="field"><label>贸易背景</label><select class="select"><option>货物贸易</option><option>服务贸易</option></select></div><div class="field"><label>预估月交易额 (USD)</label><input class="input" placeholder="例：200,000"/></div><div class="field full"><label>申请收款账户</label>${ACCOUNT_PRODUCTS.map((p) => `<label class="doc-item" style="cursor:${p.status === '可申请' ? 'pointer' : 'default'};opacity:${p.status === '可申请' ? 1 : .55}"><input type="checkbox" ${p.status === '可申请' ? 'checked' : 'disabled'}/><div><div class="bold small">${p.bank} · ${p.region}</div><div class="small muted">${p.ccys.join(' / ')} · ${p.bg}</div></div><span style="margin-left:auto">${statusBadge(p.status)}</span></label>`).join('')}</div><div class="field full"><label>资金来源 / 业务说明</label><textarea class="input" placeholder="例：向美国、欧洲买家出口电子零件"></textarea></div></div>`;
   else body = `<dl class="kv"><dt>公司</dt><dd>${w.company || '—'}</dd><dt>联系人电邮</dt><dd>${w.email || '—'}</dd><dt>归属</dt><dd>${ownerName}</dd><dt>文件</dt><dd>${Object.keys(w.docs).length} / 7</dd><dt>OCR</dt><dd>${w.ocr ? '已识别并确认' : '未识别（CS 会处理）'}</dd><dt>申请账户</dt><dd>渣打银行（香港）VA · HKD / USD / CNH / EUR</dd></dl>${note('提交后：平台 CS 核对补录 → 合规审核 → 董事实人验证 → 提交 Allinpay → 账户开通。开户费按归属的费率模板，由 Allinpay 扣收。')}<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" checked/> 我确认所提供资料真实、完整，并同意平台的服务条款和私隐政策</label>`;
   const nav = `<div class="modal-foot" style="justify-content:space-between"><button class="btn" ${w.step === 1 ? 'disabled' : ''} onclick="wiz().step--;render()">上一步</button>${w.step < 5 ? `<button class="btn primary" onclick="wizStep(${w.step + 1})">下一步</button>` : `<button class="btn primary" onclick='wizSubmit(${JSON.stringify(ctx)})'>提交申请</button>`}</div>`;

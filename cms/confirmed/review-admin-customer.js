@@ -55,15 +55,17 @@
     if (!frame?.isConnected || !fullAdmin()) return;
     try {
       const state=frame.contentWindow.AzureAdminChild?.snapshot();
-      if(!state || state.customerId!==frameCustomer) return;
+      if(!state || state.customerId!==frameCustomer || !Array.isArray(state.accounts) || !Array.isArray(state.txs)) return;
       cache.set(frameCustomer,clone(state));
       if(state.wallets)window.AzureWallets?.restore(frameCustomer,state.wallets);
       if(state.balance) BALANCES[frameCustomer]=clone(state.balance);
       if(state.extra?.DOC_REQS){const other=DOC_REQS.filter(r=>r.tt!=='c'||r.target!==frameCustomer),own=state.extra.DOC_REQS.filter(r=>r.tt==='c'&&r.target===frameCustomer);DOC_REQS.splice(0,DOC_REQS.length,...other,...clone(own));}
+      const ownAccounts=Array.isArray(state.accounts)?state.accounts.filter(a=>a.cust===frameCustomer):[];
+      const ownTxs=Array.isArray(state.txs)?state.txs.filter(t=>t.cust===frameCustomer):[];
       const accountIndex=ACCOUNTS.findIndex(a=>a.cust===frameCustomer), accounts=ACCOUNTS.filter(a=>a.cust!==frameCustomer);
-      accounts.splice(accountIndex<0?accounts.length:accountIndex,0,...clone(state.accounts));ACCOUNTS.splice(0,ACCOUNTS.length,...accounts);
-      const existingIds=new Set(TXS.map(t=>t.id)), changed=new Map(state.txs.map(t=>[t.id,clone(t)]));
-      const added=state.txs.filter(t=>!existingIds.has(t.id)).map(clone);
+      accounts.splice(accountIndex<0?accounts.length:accountIndex,0,...clone(ownAccounts));ACCOUNTS.splice(0,ACCOUNTS.length,...accounts);
+      const existingIds=new Set(TXS.map(t=>t.id)), changed=new Map(ownTxs.map(t=>[t.id,clone(t)]));
+      const added=ownTxs.filter(t=>!existingIds.has(t.id)).map(clone);
       const updated=TXS.flatMap(t=>t.cust===frameCustomer?(changed.has(t.id)?[changed.get(t.id)]:[]):[t]);
       TXS.splice(0,TXS.length,...added,...updated);
     } catch { /* A replaced or not-yet-ready child has no session to preserve. */ }
@@ -93,7 +95,10 @@
   };
   window.adminOpenCustomer = (id,page='home') => {
     if(!fullAdmin() || !getCustomers().some(c=>c.id===id) || !pages.some(p=>p[0]===page))return;
-    capture();customerId=id;go('hq','customer-'+page);
+    capture();customerId=id;
+    const route='customer-'+page;
+    if(S.portal==='hq'&&S.page===route){S.ui={};render();}
+    else go('hq',route);
   };
   const menuRows=[];
   for (const [key,tc,sc,en] of pages) {

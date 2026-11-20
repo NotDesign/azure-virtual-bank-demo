@@ -1,13 +1,16 @@
 {
   "name": "azure-virtual-bank-demo",
-  "version": "1.0.0",
+  "version": "1.1.0-handoff.20261120",
   "private": true,
   "type": "module",
   "description": "Azure virtual banking interactive design demo",
   "scripts": {
     "start": "node scripts/serve.mjs",
     "build": "node scripts/build.mjs",
-    "setup": "node scripts/vendor.mjs"
+    "setup": "node scripts/vendor.mjs",
+    "test:fixtures": "node scripts/verify-two-case-fixtures.mjs",
+    "test:handoff": "node scripts/verify-two-case-fixtures.mjs && node scripts/verify-hierarchy-handoff.mjs && node scripts/verify-admin-delegation-handoff.mjs && node scripts/verify-external-review.mjs && node scripts/verify-intake-handoff.mjs",
+    "test:kyc": "node scripts/verify-kyc-methods.mjs"
   },
   "engines": {
     "node": ">=20"

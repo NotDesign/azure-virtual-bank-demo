@@ -1,5 +1,5 @@
 import {createKycMethods} from './kyc-methods.js?v=20261117-kyc-simple';
-import {createWizardTemplates} from './wizard-templates.js?v=20261117-kyc-methods';
+import {createWizardTemplates} from './wizard-templates.js?v=20261120-handoff';
 import {createWizardProgress} from './wizard-progress.js?v=20261117-kyc-methods';
 // Application flow adapter. Demo fill is explicit and never represents OCR.
 const B=window.AzureBridge,F=window.AzureFiles,C=B.copy,E=B.escape;

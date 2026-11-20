@@ -10,12 +10,12 @@ const DR_SRC = ['内部风控', 'Allinpay 渠道调单', '收款 / 汇款银行'
 window.CTRL_LOG = [
   { t: '2026-10-09 14:20', act: '冻结', tt: 'c', target: 'AZ100006', scopes: ['pay'], reason: 'Allinpay 渠道要求', by: 'risk@ourbank.example' },
   { t: '2026-10-08 10:05', act: '调单', tt: 'c', target: 'AZ100006', scopes: [], reason: 'Allinpay 渠道调单 · 2 笔', by: 'risk@ourbank.example' },
-  { t: '2026-09-22 16:40', act: '解冻', tt: 'c', target: 'AZ100004', scopes: ['login'], reason: '客户或代理要求', by: 'stephen@ourbank.example' },
+
 ];
 window.DOC_REQS = [
   { id: 'DR-261012-01', tt: 'c', target: 'AZ100001', src: 'Allinpay 渠道调单', chRef: 'ALP-RFI-88213', txs: [], custs: [], docs: ['商业合同 / 订单', '商业发票', '物流单 / 提单'], due: '2026-10-17', autoStop: true, status: '待回复', created: '2026-10-12', by: 'risk@ourbank.example', memo: '请提供以下交易的合同、发票和物流单，以配合收款银行核查。', resp: {} },
   { id: 'DR-261008-02', tt: 'c', target: 'AZ100006', src: 'Allinpay 渠道调单', chRef: 'ALP-RFI-87940', txs: [], custs: [], docs: ['商业发票', '交易对手资料（BR / 网站）'], due: '2026-10-11', autoStop: true, status: '逾期', created: '2026-10-08', by: 'risk@ourbank.example', memo: '收款银行要求提供付款人资料。', resp: {} },
-  { id: 'DR-260930-03', tt: 'a', target: 'A002', src: '内部风控', chRef: '', txs: [], custs: ['AZ100005', 'AZ100006'], docs: ['客户尽调 / KYC 记录', '与客户的推荐或服务协议'], due: '2026-10-07', autoStop: false, status: '已结案', created: '2026-09-30', by: 'compliance@ourbank.example', memo: '年度代理抽查。', resp: { '客户尽调 / KYC 记录': 'kyc_c1005_c1006.pdf', '与客户的推荐或服务协议': 'agreements.pdf' } },
+
 ];
 (function seed() {
   CUSTOMERS.forEach((c) => { if (c.status === '冻结' && !c.frz) c.frz = { scopes: ['all'], reason: '风控调查', memo: '历史冻结', t: '2026-09-30 11:00', by: 'risk@ourbank.example' }; });
@@ -26,7 +26,7 @@ window.DOC_REQS = [
 })();
 
 const tgt = (tt, id) => (tt === 'c' ? cust(id) : agent(id));
-const tgtName = (tt, id) => `${tt === 'c' ? '客户' : agent(id).level === 1 ? '一级' : '二级'} · ${tgt(tt, id).name}`;
+const tgtName = (tt, id) => `${tt === 'c' ? '客户' : agent(id).level === 1 ? '一级' : '二级'} · ${htmlText(tgt(tt, id).name)}`;
 const scopeName = (tt, k) => ((tt === 'c' ? FRZ_C : FRZ_A).find((x) => x[0] === k) || [, k])[1];
 function frzBadge(o, tt) { if (!o.frz) return ''; const s = o.frz.scopes; const lab = tt === 'c' ? (s.includes('all') ? '已冻结' : s.includes('pay') ? '止付' : s.includes('login') ? '冻结登录' : '部分冻结') : (s.includes('login') ? '已冻结' : '部分冻结'); return ` <span class="badge ${lab === '已冻结' || lab === '止付' ? 'err' : 'warn'}">${lab}</span>`; }
 function openDR(tt, id) { return DOC_REQS.filter((d) => d.tt === tt && d.target === id && ['待回复', '已回复', '退回补充', '逾期'].includes(d.status)); }
@@ -36,21 +36,21 @@ function ctrlBtns(tt, id, sm = true) {
 }
 function logCtrl(act, tt, id, scopes, reason) {
   CTRL_LOG.unshift({ t: TODAY + ' ' + new Date().toTimeString().slice(0, 5), act, tt, target: id, scopes, reason, by: ME.hq.email });
-  AUDIT.unshift({ t: TODAY + ' ' + new Date().toTimeString().slice(0, 5), who: ME.hq.email, what: act, obj: `${id} ${tgt(tt, id).name}${scopes.length ? '（' + scopes.map((k) => scopeName(tt, k)).join('、') + '）' : ''}`, ip: '198.51.100.7' });
+  AUDIT.unshift({ t: TODAY + ' ' + new Date().toTimeString().slice(0, 5), who: ME.hq.email, what: act, obj: `${id} ${htmlText(tgt(tt, id).name)}${scopes.length ? '（' + scopes.map((k) => scopeName(tt, k)).join('、') + '）' : ''}`, ip: '198.51.100.7' });
 }
 
 // ---------- 冻结 ----------
 function freezeModal(tt, id) {
   const o = tgt(tt, id), L = tt === 'c' ? FRZ_C : FRZ_A, cur = o.frz ? o.frz.scopes : (tt === 'c' ? ['pay'] : ['login', 'links']);
   const isL1 = tt === 'a' && o.level === 1, subs = isL1 ? AGENTS.filter((x) => x.parent === id && x.status === '启用') : [];
-  modal(`${o.frz ? '调整冻结' : '冻结'} · ${o.name}`, `${o.frz ? note(`当前：${o.frz.scopes.map((k) => scopeName(tt, k)).join('、')} · ${o.frz.reason} · ${o.frz.t}`, 'warn') : ''}
+  modal(`${o.frz ? '调整冻结' : '冻结'} · ${htmlText(o.name)}`, `${o.frz ? note(`当前：${o.frz.scopes.map((k) => scopeName(tt, k)).join('、')} · ${htmlText(o.frz.reason)} · ${o.frz.t}`, 'warn') : ''}
     <div class="field"><label>冻结范围（可多选）</label><div style="display:grid;gap:6px">${L.map(([k, n, d]) => `<label class="pick" style="border:1px solid var(--color-divider)"><input type="checkbox" class="fzS" value="${k}" ${cur.includes(k) ? 'checked' : ''} ${k === 'amt' ? `onchange="document.getElementById('fzAmt').style.display=this.checked?'grid':'none'"` : ''}> <div><b>${n}</b><div class="small muted">${d}</div></div></label>`).join('')}</div></div>
     ${tt === 'c' ? `<div class="form-grid" id="fzAmt" style="display:${cur.includes('amt') ? 'grid' : 'none'}"><div class="field"><label>币种</label><select class="select" id="fzCcy">${Object.keys(BALANCES[id] || { HKD: 1, USD: 1 }).map((c) => `<option>${c}</option>`).join('')}</select></div><div class="field"><label>冻结金额</label><input class="input" id="fzVal" type="number" placeholder="0.00" value="${(o.frz && o.frz.amt && o.frz.amt.v) || ''}"></div></div>` : ''}
     <div class="form-grid"><div class="field"><label>原因</label><select class="select" id="fzWhy">${FRZ_REASON.map((r) => `<option ${o.frz && o.frz.reason === r ? 'selected' : ''}>${r}</option>`).join('')}</select></div><div class="field"><label>渠道 / 外部参考号（选填）</label><input class="input" id="fzRef" placeholder="例：ALP-RFI-88213"></div>
-    <div class="field full"><label>内部备注</label><textarea class="input" id="fzMemo" placeholder="说明冻结原因和后续跟进">${(o.frz && o.frz.memo) || ''}</textarea></div></div>
-    ${isL1 && subs.length ? `<label class="pick" style="padding:0"><input type="checkbox" id="fzSubs"> 名下 ${subs.length} 个二级代理一并冻结（${subs.map((x) => x.name).join('、')}）</label>` : ''}
+    <div class="field full"><label>内部备注</label><textarea class="input" id="fzMemo" placeholder="说明冻结原因和后续跟进">${htmlText((o.frz && o.frz.memo) || '')}</textarea></div></div>
+    ${isL1 && subs.length ? `<label class="pick" style="padding:0"><input type="checkbox" id="fzSubs"> 名下 ${subs.length} 个二级代理一并冻结（${subs.map((x) => htmlText(x.name)).join('、')}）</label>` : ''}
     ${tt === 'a' ? note('冻结代理不会冻结它的客户；客户如需冻结请在客户管理单独操作。') : ''}
-    <div style="display:grid;gap:4px"><label class="pick" style="padding:0"><input type="checkbox" id="fzN1" checked> 电邮通知${tt === 'c' ? '客户' : '代理'}</label>${tt === 'c' && o.l1 ? `<label class="pick" style="padding:0"><input type="checkbox" id="fzN2" checked> 通知归属代理（${agent(o.l1).name}${o.l2 ? ' / ' + agent(o.l2).name : ''}）</label>` : ''}<div class="small muted">法院或执法机关要求时，请勿通知对方，以免泄露调查。</div></div>`,
+    <div style="display:grid;gap:4px"><label class="pick" style="padding:0"><input type="checkbox" id="fzN1" checked> 电邮通知${tt === 'c' ? '客户' : '代理'}</label>${tt === 'c' && o.l1 ? `<label class="pick" style="padding:0"><input type="checkbox" id="fzN2" checked> 通知归属代理（${htmlText(agent(o.l1).name)}${o.l2 ? ' / ' + htmlText(agent(o.l2).name) : ''}）</label>` : ''}<div class="small muted">法院或执法机关要求时，请勿通知对方，以免泄露调查。</div></div>`,
     `<button class="btn" onclick="closeModal()">取消</button><button class="btn danger" onclick="doFreeze('${tt}','${id}')">确认冻结</button>`, true);
   AFTER.push(() => {}); const w = $('#fzWhy'); if (w) w.onchange = () => { if (/法院|执法|AML/.test(w.value)) { $('#fzN1').checked = false; const n2 = $('#fzN2'); if (n2) n2.checked = false; } };
 }
@@ -62,11 +62,11 @@ function doFreeze(tt, id) {
   o.frz = { scopes, reason: why, memo: $('#fzMemo').value, ref: $('#fzRef').value, t: TODAY + ' ' + new Date().toTimeString().slice(0, 5), by: ME.hq.email, amt: scopes.includes('amt') ? { ccy: $('#fzCcy').value, v: +$('#fzVal').value } : null };
   logCtrl('冻结', tt, id, scopes, why);
   let n = 0; if ($('#fzSubs') && $('#fzSubs').checked) AGENTS.filter((x) => x.parent === id && x.status === '启用').forEach((x) => { x.frz = { ...o.frz, reason: '上级一级代理被冻结' }; logCtrl('冻结', 'a', x.id, o.frz.scopes, '上级一级代理被冻结'); n++; });
-  closeModal(); toast(`已冻结 ${o.name}${n ? `，并冻结 ${n} 个二级代理` : ''}${$('#fzN1') && $('#fzN1').checked === false ? '（未通知对方）' : ''}`); kRenderSafe();
+  closeModal(); toast(`已冻结 ${htmlText(o.name)}${n ? `，并冻结 ${n} 个二级代理` : ''}${$('#fzN1') && $('#fzN1').checked === false ? '（未通知对方）' : ''}`); kRenderSafe();
 }
 function unfreezeModal(tt, id) {
   const o = tgt(tt, id); if (!o.frz) return toast('未冻结');
-  modal(`解冻 · ${o.name}`, `${note(`冻结于 ${o.frz.t} · ${o.frz.reason}${o.frz.memo ? ' · ' + o.frz.memo : ''}`, 'warn')}
+  modal(`解冻 · ${htmlText(o.name)}`, `${note(`冻结于 ${o.frz.t} · ${htmlText(o.frz.reason)}${o.frz.memo ? ' · ' + htmlText(o.frz.memo) : ''}`, 'warn')}
     <div class="field"><label>解除范围</label><div style="display:grid;gap:6px">${o.frz.scopes.map((k) => `<label class="pick" style="border:1px solid var(--color-divider)"><input type="checkbox" class="ufS" value="${k}" checked> ${scopeName(tt, k)}${k === 'amt' && o.frz.amt ? `（${o.frz.amt.ccy} ${nf(o.frz.amt.v)}）` : ''}</label>`).join('')}</div></div>
     ${openDR(tt, id).length ? note(`仍有 ${openDR(tt, id).length} 张调单未结案，请确认是否可以解冻。`, 'warn') : ''}
     <div class="form-grid"><div class="field"><label>解冻原因</label><select class="select" id="ufWhy">${UNFRZ_REASON.map((r) => `<option>${r}</option>`).join('')}</select></div><div class="field"><label>说明</label><input class="input" id="ufMemo" placeholder="选填"></div></div>
@@ -79,7 +79,7 @@ function doUnfreeze(tt, id) {
   o.frz.scopes = o.frz.scopes.filter((k) => !lift.includes(k)); if (lift.includes('amt')) o.frz.amt = null;
   if (!o.frz.scopes.length) { o.frz = null; if (tt === 'c' && o.status === '冻结') o.status = '已开通'; }
   logCtrl('解冻', tt, id, lift, $('#ufWhy').value);
-  closeModal(); toast(o.frz ? `已部分解冻：${lift.map((k) => scopeName(tt, k)).join('、')}` : `${o.name} 已全部解冻`); kRenderSafe();
+  closeModal(); toast(o.frz ? `已部分解冻：${lift.map((k) => scopeName(tt, k)).join('、')}` : `${htmlText(o.name)} 已全部解冻`); kRenderSafe();
 }
 function kRenderSafe() { const m = $('#main'), y = m ? m.scrollTop : 0; S._samePage = true; render(); if ($('#main')) $('#main').scrollTop = y; }
 
@@ -89,15 +89,15 @@ function docReqModal(tt, id) {
   const txs = tt === 'c' ? TXS.filter((t) => t.cust === id && t.amt).slice(0, 12) : [];
   const cs = tt === 'a' ? CUSTOMERS.filter((c) => c.l1 === id || c.l2 === id) : [];
   const open = openDR(tt, id);
-  modal(`发起调单 · ${o.name}`, `${open.length ? note(`已有 ${open.length} 张未结案调单：${open.map((d) => d.id).join('、')}`, 'warn') : ''}
+  modal(`发起调单 · ${htmlText(o.name)}`, `${open.length ? note(`已有 ${open.length} 张未结案调单：${open.map((d) => d.id).join('、')}`, 'warn') : ''}
     <div class="form-grid"><div class="field"><label>调单来源</label><select class="select" id="drSrc">${DR_SRC.map((s) => `<option>${s}</option>`).join('')}</select></div><div class="field"><label>渠道 / 银行调单编号（选填）</label><input class="input" id="drRef" placeholder="例：ALP-RFI-88213"></div></div>
-    ${tt === 'c' ? `<div class="field"><label>涉及交易（可多选）</label><div class="pick-list">${txs.map((t) => `<label class="pick"><input type="checkbox" class="drT" value="${t.id}"> <span class="mono small">${t.id}</span> ${t.date} · ${t.type} · ${t.ccy} ${nf(t.amt)} <span class="muted small">· ${t.cp || ''}</span></label>`).join('') || '<div class="small muted">没有交易</div>'}</div><div class="hint small muted">不选则为针对客户整体的调单（例如资金来源）</div></div>`
-      : `<div class="field"><label>涉及客户（可多选）</label><div class="pick-list">${cs.map((c) => `<label class="pick"><input type="checkbox" class="drC" value="${c.id}"> <span class="mono small">${c.id}</span> ${c.name} <span class="muted small">· ${ownerTxt(c.l1, c.l2)}</span></label>`).join('') || '<div class="small muted">名下没有客户</div>'}</div></div>`}
+    ${tt === 'c' ? `<div class="field"><label>涉及交易（可多选）</label><div class="pick-list">${txs.map((t) => `<label class="pick"><input type="checkbox" class="drT" value="${t.id}"> <span class="mono small">${t.id}</span> ${t.date} · ${htmlText(t.type)} · ${t.ccy} ${nf(t.amt)} <span class="muted small">· ${htmlText(t.cp || '')}</span></label>`).join('') || '<div class="small muted">没有交易</div>'}</div><div class="hint small muted">不选则为针对客户整体的调单（例如资金来源）</div></div>`
+      : `<div class="field"><label>涉及客户（可多选）</label><div class="pick-list">${cs.map((c) => `<label class="pick"><input type="checkbox" class="drC" value="${c.id}"> <span class="mono small">${c.id}</span> ${htmlText(c.name)} <span class="muted small">· ${ownerTxt(c.l1, c.l2)}</span></label>`).join('') || '<div class="small muted">名下没有客户</div>'}</div></div>`}
     <div class="field"><label>需要提供的文件</label><div class="chip-row wrap">${(tt === 'c' ? DOCS_C : DOCS_A).map((d, i) => `<label class="tag" style="padding:6px 10px;display:inline-flex;gap:6px;cursor:pointer"><input type="checkbox" class="drD" value="${d}" ${i < 2 ? 'checked' : ''}> ${d}</label>`).join('')}</div></div>
     <div class="form-grid"><div class="field"><label>回复期限</label><select class="select" id="drDue"><option value="3">3 个工作日</option><option value="5" selected>5 个工作日</option><option value="7">7 个工作日</option><option value="10">10 个工作日</option></select></div>
     <div class="field"><label>逾期处理</label><select class="select" id="drAuto">${tt === 'c' ? '<option value="1">逾期自动止付</option><option value="0">只提醒，不自动处理</option>' : '<option value="0">只提醒，不自动处理</option><option value="1">逾期自动暂停佣金结算</option>'}</select></div>
     <div class="field full"><label>给${tt === 'c' ? '客户' : '代理'}的说明</label><textarea class="input" id="drMemo">${tt === 'c' ? '为配合银行核查，请在期限内上传以下交易的证明文件。' : '请提供以下客户的尽调资料，以配合平台合规抽查。'}</textarea></div></div>
-    ${tt === 'c' && o.l1 ? `<label class="pick" style="padding:0"><input type="checkbox" id="drCC" checked> 同时抄送归属代理（${agent(o.l1).name}），方便协助客户准备文件</label>` : ''}`,
+    ${tt === 'c' && o.l1 ? `<label class="pick" style="padding:0"><input type="checkbox" id="drCC" checked> 同时抄送归属代理（${htmlText(agent(o.l1).name)}），方便协助客户准备文件</label>` : ''}`,
     `<button class="btn" onclick="closeModal()">取消</button><button class="btn primary" onclick="doDocReq('${tt}','${id}')">发出调单</button>`, true);
 }
 function addWorkdays(d, n) { const x = new Date(d); while (n > 0) { x.setDate(x.getDate() + 1); if (x.getDay() % 6) n--; } return x.toISOString().slice(0, 10); }
@@ -106,20 +106,20 @@ function doDocReq(tt, id) {
   if (!docs.length) return toast('请至少选择一种文件');
   const n = DOC_REQS.length + 1, drId = `DR-${TODAY.slice(2).replace(/-/g, '')}-${String(n).padStart(2, '0')}`;
   const d = { id: drId, tt, target: id, src: $('#drSrc').value, chRef: $('#drRef').value, txs: [...document.querySelectorAll('.drT:checked')].map((x) => x.value), custs: [...document.querySelectorAll('.drC:checked')].map((x) => x.value), docs, due: addWorkdays(TODAY, +$('#drDue').value), autoStop: $('#drAuto').value === '1', status: '待回复', created: TODAY, by: ME.hq.email, memo: $('#drMemo').value, resp: {} };
-  DOC_REQS.unshift(d); logCtrl('调单', tt, id, [], `${d.src} · ${d.txs.length || d.custs.length || '整体'}${d.txs.length ? ' 笔' : d.custs.length ? ' 个客户' : ''}`);
+  DOC_REQS.unshift(d); logCtrl('调单', tt, id, [], `${htmlText(d.src)} · ${d.txs.length || d.custs.length || '整体'}${d.txs.length ? ' 笔' : d.custs.length ? ' 个客户' : ''}`);
   closeModal(); toast(`调单 ${drId} 已发出，期限 ${d.due}`); kRenderSafe();
 }
 function drDetail(drId) {
   const d = DOC_REQS.find((x) => x.id === drId), o = tgt(d.tt, d.target), isHQ = S.portal === 'hq';
-  const items = d.tt === 'c' ? d.txs.map((tid) => { const t = TXS.find((x) => x.id === tid); return t ? `<tr><td class="mono">${t.id}</td><td>${t.date}</td><td>${t.type}</td><td class="r">${t.ccy} ${nf(t.amt)}</td><td class="small">${t.cp || ''}</td></tr>` : ''; }).join('') : d.custs.map((c) => `<tr><td class="mono">${c}</td><td colspan="4">${cust(c).name}</td></tr>`).join('');
+  const items = d.tt === 'c' ? d.txs.map((tid) => { const t = TXS.find((x) => x.id === tid); return t ? `<tr><td class="mono">${t.id}</td><td>${t.date}</td><td>${htmlText(t.type)}</td><td class="r">${t.ccy} ${nf(t.amt)}</td><td class="small">${htmlText(t.cp || '')}</td></tr>` : ''; }).join('') : d.custs.map((c) => `<tr><td class="mono">${c}</td><td colspan="4">${htmlText(cust(c).name)}</td></tr>`).join('');
   const canReply = !isHQ && ['待回复', '退回补充', '逾期'].includes(d.status);
-  modal(`调单 ${d.id}`, `<div class="detail-hero"><div><small>${tgtName(d.tt, d.target)} · ${d.src}${d.chRef ? ' · ' + d.chRef : ''}</small><b>${d.docs.length} 种文件 · 期限 ${d.due}</b></div><div>${statusBadge(d.status)}</div></div>
-    ${note(d.memo || '—')}${d.autoStop && ['待回复', '退回补充'].includes(d.status) ? note(d.tt === 'c' ? '逾期未回复将自动止付。' : '逾期未回复将暂停佣金结算。', 'warn') : ''}
+  modal(`调单 ${d.id}`, `<div class="detail-hero"><div><small>${tgtName(d.tt, d.target)} · ${htmlText(d.src)}${d.chRef ? ' · ' + htmlText(d.chRef) : ''}</small><b>${d.docs.length} 种文件 · 期限 ${d.due}</b></div><div>${statusBadge(d.status)}</div></div>
+    ${note(htmlText(d.memo || '—'))}${d.autoStop && ['待回复', '退回补充'].includes(d.status) ? note(d.tt === 'c' ? '逾期未回复将自动止付。' : '逾期未回复将暂停佣金结算。', 'warn') : ''}
     ${items ? `<div class="bold">${d.tt === 'c' ? '涉及交易' : '涉及客户'}</div><div class="tbl-wrap"><table><tbody>${items}</tbody></table></div>` : ''}
-    <div class="bold mt">文件</div><div style="display:grid;gap:8px">${d.docs.map((doc) => `<div class="doc-item ${d.resp[doc] ? 'on' : ''}"><div class="fi">${d.resp[doc] ? 'PDF' : '—'}</div><div style="flex:1;min-width:0"><div class="bold small">${doc}</div><div class="small muted">${d.resp[doc] || '未上传'}</div></div>${canReply ? `<button class="btn sm" onclick="DOC_REQS.find(x=>x.id==='${d.id}').resp['${doc}']='${doc.replace(/[^\w\u4e00-\u9fa5]/g, '').slice(0, 6)}_${TODAY.replace(/-/g, '')}.pdf';drDetail('${d.id}')">${d.resp[doc] ? '重新上传' : ICON.up + ' 上传'}</button>` : ''}</div>`).join('')}</div>
-    ${d.note ? note('平台意见：' + d.note, 'warn') : ''}
+    <div class="bold mt">文件</div><div style="display:grid;gap:8px">${d.docs.map((doc) => `<div class="doc-item ${d.resp[doc] ? 'on' : ''}"><div class="fi">${d.resp[doc] ? 'PDF' : '—'}</div><div style="flex:1;min-width:0"><div class="bold small">${htmlText(doc)}</div><div class="small muted">${htmlText(d.resp[doc] || '未上传')}</div></div>${canReply ? `<button class="btn sm" onclick="uploadDemoRequestDoc('${d.id}',${d.docs.indexOf(doc)})">${d.resp[doc] ? '重新上传' : ICON.up + ' 上传'}</button>` : ''}</div>`).join('')}</div>
+    ${d.note ? note('平台意见：' + htmlText(d.note), 'warn') : ''}
     ${isHQ && ['已回复'].includes(d.status) ? `<div class="field mt"><label>审核意见</label><textarea class="input" id="drNote" placeholder="退回补充时必须填写"></textarea></div>` : ''}`,
-    isHQ ? `${d.status === '待回复' ? `<button class="btn" onclick="drSim('${d.id}')">模拟：对方已回复</button><button class="btn" onclick="toast('已发催办电邮')">催办</button>` : ''}${['待回复', '逾期'].includes(d.status) && d.tt === 'c' && !(o.frz && (o.frz.scopes.includes('pay') || o.frz.scopes.includes('all'))) ? `<button class="btn danger" onclick="drStop('${d.id}')">止付客户</button>` : ''}${d.status === '已回复' ? `<button class="btn" onclick="drSet('${d.id}','退回补充')">退回补充</button><button class="btn primary" onclick="drSet('${d.id}','已结案')">通过并结案</button>` : ''}${['待回复', '逾期', '退回补充'].includes(d.status) ? `<button class="btn" onclick="drSet('${d.id}','已撤销')">撤销</button>` : ''}<button class="btn primary" onclick="closeModal()">关闭</button>`
+    isHQ ? `${d.status === '待回复' ? `<button class="btn" onclick="drSim('${d.id}')">模拟：对方已回复</button><button class="btn" onclick="toast('已记录模拟催办（Demo，不会发送电邮）')">催办</button>` : ''}${['待回复', '逾期'].includes(d.status) && d.tt === 'c' && !(o.frz && (o.frz.scopes.includes('pay') || o.frz.scopes.includes('all'))) ? `<button class="btn danger" onclick="drStop('${d.id}')">止付客户</button>` : ''}${d.status === '已回复' ? `<button class="btn" onclick="drSet('${d.id}','退回补充')">退回补充</button><button class="btn primary" onclick="drSet('${d.id}','已结案')">通过并结案</button>` : ''}${['待回复', '逾期', '退回补充'].includes(d.status) ? `<button class="btn" onclick="drSet('${d.id}','已撤销')">撤销</button>` : ''}<button class="btn primary" onclick="closeModal()">关闭</button>`
       : canReply ? `<button class="btn" onclick="closeModal()">稍后</button><button class="btn primary" onclick="drReply('${d.id}')">提交回复</button>` : `<button class="btn primary" onclick="closeModal()">关闭</button>`, true);
 }
 function drSim(id) { const d = DOC_REQS.find((x) => x.id === id); d.docs.forEach((x) => (d.resp[x] = 'reply_' + (d.docs.indexOf(x) + 1) + '.pdf')); d.status = '已回复'; toast('对方已上传文件'); drDetail(id); kRenderSafe(); drDetail(id); }
@@ -142,14 +142,14 @@ function drReply(id) {
 }
 
 // ---------- 总后台重新分配（一级 + 二级） ----------
-function trL2Opts(l1, cur) { const L = l1 ? AGENTS.filter((a) => a.parent === l1 && a.status === '启用') : []; return `<option value="">${l1 ? '无二级（直属一级）' : '—'}</option>${L.map((a) => `<option value="${a.id}" ${a.id === cur ? 'selected' : ''}>${a.id} ${a.name}</option>`).join('')}`; }
+function trL2Opts(l1, cur) { const L = l1 ? AGENTS.filter((a) => a.parent === l1 && a.status === '启用') : []; return `<option value="">${l1 ? '无二级（直属一级）' : '—'}</option>${L.map((a) => `<option value="${a.id}" ${a.id === cur ? 'selected' : ''}>${a.id} ${htmlText(a.name)}</option>`).join('')}`; }
 function reassignCust(id, onlyAgent) {
   const l1s = AGENTS.filter((a) => a.level === 1 && a.status === '启用');
   const list = id ? [cust(id)] : onlyAgent ? custsOf(onlyAgent) : CUSTOMERS;
   const c0 = id ? list[0] : null;
   modal('重新分配客户', `${note('总后台可以把客户直接分配到<b>一级</b>和<b>二级</b>代理，或改为自营。历史交易的佣金按交易当时的归属计算，生效日之后的交易归新代理。')}
-    <div class="field"><label>客户</label>${id ? `<input class="input" value="${c0.id} ${c0.name} · 当前 ${ownerTxt(c0.l1, c0.l2)}" disabled>` : `<div class="pick-list">${list.map((c) => `<label class="pick"><input type="checkbox" value="${c.id}" class="trPick" ${onlyAgent ? 'checked' : ''}> <span class="mono small">${c.id}</span> ${c.name} <span class="muted small">· ${ownerTxt(c.l1, c.l2)}</span></label>`).join('')}</div>`}</div>
-    <div class="form-grid"><div class="field"><label>一级代理</label><select class="select" id="trTo" onchange="document.getElementById('trTo2').innerHTML=trL2Opts(this.value)"><option value="">自营（总后台直属）</option>${l1s.map((a) => `<option value="${a.id}" ${c0 && c0.l1 === a.id ? 'selected' : ''}>${a.id} ${a.name}</option>`).join('')}</select></div>
+    <div class="field"><label>客户</label>${id ? `<input class="input" value="${c0.id} ${c0.name} · 当前 ${ownerTxt(c0.l1, c0.l2)}" disabled>` : `<div class="pick-list">${list.map((c) => `<label class="pick"><input type="checkbox" value="${c.id}" class="trPick" ${onlyAgent ? 'checked' : ''}> <span class="mono small">${c.id}</span> ${htmlText(c.name)} <span class="muted small">· ${ownerTxt(c.l1, c.l2)}</span></label>`).join('')}</div>`}</div>
+    <div class="form-grid"><div class="field"><label>一级代理</label><select class="select" id="trTo" onchange="document.getElementById('trTo2').innerHTML=trL2Opts(this.value)"><option value="">自营（总后台直属）</option>${l1s.map((a) => `<option value="${a.id}" ${c0 && c0.l1 === a.id ? 'selected' : ''}>${a.id} ${htmlText(a.name)}</option>`).join('')}</select></div>
     <div class="field"><label>二级代理</label><select class="select" id="trTo2">${trL2Opts(c0 ? c0.l1 : '', c0 ? c0.l2 : '')}</select></div>${effField}${comOpts}<div class="field"><label>原因</label><select class="select" id="trWhy"><option>代理停止合作 / 失联</option><option>客户要求更换代理</option><option>代理违规</option><option>内部调整</option></select></div></div>
     ${note('客户费率不变；系统会检查客户价是否仍高于新代理底价。客户和新旧代理都会收到“服务代理变更”电邮通知。')}`,
     `<button class="btn" onclick="closeModal()">取消</button><button class="btn primary" onclick="doReassignHQ(${id ? `['${id}']` : 'null'})">确认转移</button>`, true);
@@ -165,7 +165,7 @@ function doReassignHQ(ids) {
 // 总后台：把二级代理转到另一个一级
 function moveL2(aid) {
   const a = agent(aid), cs = custsOf(aid), l1s = AGENTS.filter((x) => x.level === 1 && x.status === '启用' && x.id !== a.parent);
-  modal(`转移二级代理 · ${a.name}`, `${note(`当前上级：<b>${agent(a.parent).name}</b>；名下 <b>${cs.length}</b> 个客户。`)}
+  modal(`转移二级代理 · ${htmlText(a.name)}`, `${note(`当前上级：<b>${agent(a.parent).name}</b>；名下 <b>${cs.length}</b> 个客户。`)}
     <div class="form-grid"><div class="field"><label>转到一级代理</label><select class="select" id="mvTo">${l1s.map((x) => `<option value="${x.id}">${x.id} ${x.name}</option>`).join('')}</select></div>${effField}
     <div class="field full"><label>名下客户</label><select class="select" id="mvCust"><option value="follow">跟随二级一起转到新一级（客户仍归此二级）</option><option value="stay">留在原一级，改为原一级直属</option></select></div>
     <div class="field"><label>二级佣金比例（新一级价差 %）</label><input class="input" id="mvRatio" value="${L2RATIO[aid] ? Object.values(L2RATIO[aid])[0] : 40}"></div>${comOpts}
@@ -179,8 +179,8 @@ function doMoveL2(aid) {
   const follow = $('#mvCust').value === 'follow', cs = custsOf(aid).map((c) => c.id), r = +$('#mvRatio').value || 40;
   if (cs.length) applyTransfer(cs, follow ? to : from, follow ? aid : null, $('#trWhy').value, $('#trEff').value, $('#trCom').value);
   a.parent = to; L2RATIO[aid] = Object.fromEntries(PRODUCTS.map((p) => [p.code, r]));
-  AUDIT.unshift({ t: TODAY + ' 16:10', who: ME.hq.email, what: '转移二级代理', obj: `${aid} ${a.name}：${from} → ${to}`, ip: '198.51.100.7' });
-  closeModal(); toast(`${a.name} 已转到 ${agent(to).name}${cs.length ? `，${follow ? cs.length + ' 个客户一起转移' : '客户留在原一级'}` : ''}`); kRenderSafe();
+  AUDIT.unshift({ t: TODAY + ' 16:10', who: ME.hq.email, what: '转移二级代理', obj: `${aid} ${htmlText(a.name)}：${from} → ${to}`, ip: '198.51.100.7' });
+  closeModal(); toast(`${htmlText(a.name)} 已转到 ${agent(to).name}${cs.length ? `，${follow ? cs.length + ' 个客户一起转移' : '客户留在原一级'}` : ''}`); kRenderSafe();
 }
 function agentActs(a) {
   const base = a.status !== '启用' ? '' : ctrlBtns('a', a.id);
@@ -196,9 +196,9 @@ PAGES['hq:risk'] = () => {
   const st = S.ui.drs || '全部';
   const drs = DOC_REQS.filter((d) => st === '全部' || d.status === st);
   let body = '';
-  if (t === 'dr') body = `<div class="toolbar"><div class="chip-row">${['全部', '待回复', '已回复', '逾期', '退回补充', '已结案', '已撤销'].map((x) => `<button class="chip ${x === st ? 'on' : ''}" onclick="setUI('drs','${x}')">${x}</button>`).join('')}</div></div><div class="tbl-wrap"><table><thead><tr><th>调单号</th><th>对象</th><th>来源</th><th>涉及</th><th>文件</th><th>发出</th><th>期限</th><th>状态</th><th class="r"></th></tr></thead><tbody>${drs.map((d) => `<tr><td class="mono">${d.id}</td><td>${tgtName(d.tt, d.target)}</td><td class="small">${d.src}${d.chRef ? `<div class="mono muted">${d.chRef}</div>` : ''}</td><td class="small">${d.txs.length ? d.txs.length + ' 笔交易' : d.custs.length ? d.custs.length + ' 个客户' : '整体'}</td><td class="small">${Object.keys(d.resp).length} / ${d.docs.length}</td><td>${d.created}</td><td class="${d.status === '逾期' ? 'down' : ''}">${d.due}</td><td>${statusBadge(d.status)}</td><td class="r"><button class="link" onclick="drDetail('${d.id}')">${d.status === '已回复' ? '审核' : '查看'}</button></td></tr>`).join('') || '<tr><td colspan="9" class="empty">没有调单</td></tr>'}</tbody></table></div>`;
-  else if (t === 'frz') body = `<div class="tbl-wrap"><table><thead><tr><th>对象</th><th>范围</th><th>原因</th><th>备注</th><th>冻结时间</th><th>操作人</th><th class="r"></th></tr></thead><tbody>${[...fc.map((c) => ['c', c]), ...fa.map((a) => ['a', a])].map(([tt, o]) => `<tr><td>${tgtName(tt, o.id)}</td><td>${o.frz.scopes.map((k) => `<span class="tag">${scopeName(tt, k)}${k === 'amt' && o.frz.amt ? ' ' + o.frz.amt.ccy + ' ' + nf(o.frz.amt.v) : ''}</span>`).join(' ')}</td><td>${o.frz.reason}</td><td class="small muted">${o.frz.memo || '—'}</td><td class="nowrap">${o.frz.t}</td><td class="small muted">${o.frz.by}</td><td class="r nowrap"><button class="link" onclick="unfreezeModal('${tt}','${o.id}')">解冻</button> · <button class="link" onclick="freezeModal('${tt}','${o.id}')">调整</button></td></tr>`).join('') || '<tr><td colspan="7" class="empty">目前没有冻结中的客户或代理</td></tr>'}</tbody></table></div>`;
-  else body = `<div class="tbl-wrap"><table><thead><tr><th>时间</th><th>操作</th><th>对象</th><th>范围</th><th>原因 / 说明</th><th>操作人</th></tr></thead><tbody>${CTRL_LOG.map((r) => `<tr><td class="nowrap">${r.t}</td><td>${statusBadge(r.act === '冻结' ? '冻结' : r.act === '解冻' ? '已解冻' : r.act)}</td><td>${tgtName(r.tt, r.target)}</td><td class="small">${r.scopes.map((k) => scopeName(r.tt, k)).join('、') || '—'}</td><td class="small">${r.reason}</td><td class="small muted">${r.by}</td></tr>`).join('')}</tbody></table></div>`;
+  if (t === 'dr') body = `<div class="toolbar"><div class="chip-row">${['全部', '待回复', '已回复', '逾期', '退回补充', '已结案', '已撤销'].map((x) => `<button class="chip ${x === st ? 'on' : ''}" onclick="setUI('drs','${x}')">${x}</button>`).join('')}</div></div><div class="tbl-wrap"><table><thead><tr><th>调单号</th><th>对象</th><th>来源</th><th>涉及</th><th>文件</th><th>发出</th><th>期限</th><th>状态</th><th class="r"></th></tr></thead><tbody>${drs.map((d) => `<tr><td class="mono">${d.id}</td><td>${tgtName(d.tt, d.target)}</td><td class="small">${htmlText(d.src)}${d.chRef ? `<div class="mono muted">${htmlText(d.chRef)}</div>` : ''}</td><td class="small">${d.txs.length ? d.txs.length + ' 笔交易' : d.custs.length ? d.custs.length + ' 个客户' : '整体'}</td><td class="small">${Object.keys(d.resp).length} / ${d.docs.length}</td><td>${d.created}</td><td class="${d.status === '逾期' ? 'down' : ''}">${d.due}</td><td>${statusBadge(d.status)}</td><td class="r"><button class="link" onclick="drDetail('${d.id}')">${d.status === '已回复' ? '审核' : '查看'}</button></td></tr>`).join('') || '<tr><td colspan="9" class="empty">没有调单</td></tr>'}</tbody></table></div>`;
+  else if (t === 'frz') body = `<div class="tbl-wrap"><table><thead><tr><th>对象</th><th>范围</th><th>原因</th><th>备注</th><th>冻结时间</th><th>操作人</th><th class="r"></th></tr></thead><tbody>${[...fc.map((c) => ['c', c]), ...fa.map((a) => ['a', a])].map(([tt, o]) => `<tr><td>${tgtName(tt, o.id)}</td><td>${o.frz.scopes.map((k) => `<span class="tag">${scopeName(tt, k)}${k === 'amt' && o.frz.amt ? ' ' + o.frz.amt.ccy + ' ' + nf(o.frz.amt.v) : ''}</span>`).join(' ')}</td><td>${htmlText(o.frz.reason)}</td><td class="small muted">${htmlText(o.frz.memo || '—')}</td><td class="nowrap">${o.frz.t}</td><td class="small muted">${o.frz.by}</td><td class="r nowrap"><button class="link" onclick="unfreezeModal('${tt}','${o.id}')">解冻</button> · <button class="link" onclick="freezeModal('${tt}','${o.id}')">调整</button></td></tr>`).join('') || '<tr><td colspan="7" class="empty">目前没有冻结中的客户或代理</td></tr>'}</tbody></table></div>`;
+  else body = `<div class="tbl-wrap"><table><thead><tr><th>时间</th><th>操作</th><th>对象</th><th>范围</th><th>原因 / 说明</th><th>操作人</th></tr></thead><tbody>${CTRL_LOG.map((r) => `<tr><td class="nowrap">${r.t}</td><td>${statusBadge(r.act === '冻结' ? '冻结' : r.act === '解冻' ? '已解冻' : r.act)}</td><td>${tgtName(r.tt, r.target)}</td><td class="small">${r.scopes.map((k) => scopeName(r.tt, k)).join('、') || '—'}</td><td class="small">${htmlText(r.reason)}</td><td class="small muted">${htmlText(r.by)}</td></tr>`).join('')}</tbody></table></div>`;
   return head('风控与调单', '冻结、解冻和调单的集中处理；所有操作写入审计日志', `<button class="btn" onclick="riskPick('freeze')">冻结</button><button class="btn primary" onclick="riskPick('dr')">${ICON.plus} 发起调单</button>`) +
     `<div class="grid g4" style="margin-bottom:20px">${kpi('冻结中客户', fc.length, '含止付和部分冻结')}${kpi('冻结中代理', fa.length, '一级 + 二级')}${kpi('待回复调单', pend.length, rep.length ? rep.length + ' 张已回复待审核' : '—')}${kpi('逾期调单', over.length, over.length ? '可以止付客户' : '—')}</div>
     <div class="card">${tabs('rk', [['dr', `调单${pend.length + rep.length + over.length ? ' · ' + (pend.length + rep.length + over.length) : ''}`], ['frz', `冻结中${fc.length + fa.length ? ' · ' + (fc.length + fa.length) : ''}`], ['log', '操作记录']], t)}${body}</div>`;
@@ -207,16 +207,16 @@ function riskPick(kind) {
   modal(kind === 'dr' ? '发起调单 · 选择对象' : '冻结 · 选择对象', `<div class="seg" style="margin-bottom:10px"><button class="on" id="rpC" onclick="this.classList.add('on');rpA.classList.remove('on');rpList.innerHTML=rpOpts('c')">客户</button><button id="rpA" onclick="this.classList.add('on');rpC.classList.remove('on');rpList.innerHTML=rpOpts('a')">代理</button></div><select class="select" id="rpList" size="8" style="height:auto">${rpOpts('c')}</select>`,
     `<button class="btn" onclick="closeModal()">取消</button><button class="btn primary" onclick="const v=rpList.value;if(!v)return toast('请选择对象');const [tt,id]=v.split(':');closeModal();${kind === 'dr' ? 'docReqModal' : 'freezeModal'}(tt,id)">下一步</button>`);
 }
-function rpOpts(tt) { return (tt === 'c' ? CUSTOMERS : AGENTS.filter((a) => a.status === '启用')).map((o) => `<option value="${tt}:${o.id}">${o.id} ${o.name}${o.frz ? '（已冻结）' : ''}</option>`).join(''); }
+function rpOpts(tt) { return (tt === 'c' ? CUSTOMERS : AGENTS.filter((a) => a.status === '启用')).map((o) => `<option value="${tt}:${o.id}">${o.id} ${htmlText(o.name)}${o.frz ? '（已冻结）' : ''}</option>`).join(''); }
 
 // ---------- 客户 / 代理端提示 ----------
 function portalBanner() {
   const P = S.portal; if (!['cust', 'l1', 'l2'].includes(P)) return '';
   const tt = P === 'cust' ? 'c' : 'a', id = ME[P].org, o = tgt(tt, id); if (!o) return '';
   let h = '';
-  if (o.frz) h += note(`<b>${tt === 'c' ? '账户' : '代理账户'}已被限制：</b>${o.frz.scopes.map((k) => scopeName(tt, k)).join('、')}。${tt === 'c' && /法院|执法|AML/.test(o.frz.reason) ? '' : '原因：' + o.frz.reason + '。'}如有疑问请联系平台客服 cs@azure-pay.example。`, 'warn');
+  if (o.frz) h += note(`<b>${tt === 'c' ? '账户' : '代理账户'}已被限制：</b>${o.frz.scopes.map((k) => scopeName(tt, k)).join('、')}。${tt === 'c' && /法院|执法|AML/.test(o.frz.reason) ? '' : '原因：' + htmlText(o.frz.reason) + '。'}如有疑问请联系平台客服 cs@azure-pay.example。`, 'warn');
   const dr = DOC_REQS.filter((d) => d.tt === tt && d.target === id && ['待回复', '退回补充', '逾期'].includes(d.status));
-  dr.forEach((d) => { h += `<div class="note warn" style="display:flex;gap:12px;align-items:center;justify-content:space-between"><div><b>调单 ${d.id}</b>：请在 ${d.due} 前上传 ${d.docs.join('、')}。${d.status === '退回补充' ? '（已退回，需要补充）' : ''}${d.autoStop && tt === 'c' ? '逾期未回复将暂停付款。' : ''}</div><button class="btn sm primary" onclick="drDetail('${d.id}')">上传文件</button></div>`; });
+  dr.forEach((d) => { h += `<div class="note warn" style="display:flex;gap:12px;align-items:center;justify-content:space-between"><div><b>调单 ${d.id}</b>：请在 ${d.due} 前上传 ${d.docs.map(htmlText).join('、')}。${d.status === '退回补充' ? '（已退回，需要补充）' : ''}${d.autoStop && tt === 'c' ? '逾期未回复将暂停付款。' : ''}</div><button class="btn sm primary" onclick="drDetail('${d.id}')">上传文件</button></div>`; });
   return h ? `<div style="display:grid;gap:10px;margin-bottom:16px">${h}</div>` : '';
 }
 Object.keys(PAGES).forEach((k) => { if (k.startsWith('hq:') || k === '*:app') return; const f = PAGES[k]; PAGES[k] = (...a) => portalBanner() + f(...a); });

@@ -15,6 +15,7 @@ export function mountCMS({root,account,publicRoute,locale,onLocale,onLogout,onAc
  frame.addEventListener('load',send,{signal:abort.signal});
  window.addEventListener('message',e=>{if(e.origin!==location.origin||e.source!==frame.contentWindow||!authorized())return;
   if(e.data?.type==='azure-ready')send();
+  if(e.data?.type==='azure-intake-route'&&!account&&typeof e.data.route==='string'&&/^#\/(apply|join)\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+$/.test(e.data.route)){publicRoute=e.data.route;history.replaceState({},'',e.data.route);return;}
   if(e.data?.type==='azure-locale'){locale=e.data.locale;onLocale?.(locale);}
   if(e.data?.type==='azure-logout')onLogout?.();
   if(e.data?.type==='azure-public'){const u=new URL(location.href);u.hash=e.data.route;window.open(u.href,'_blank','noopener');}

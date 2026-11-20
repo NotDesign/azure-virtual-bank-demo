@@ -7,12 +7,19 @@ const sendParent=(type,data={})=>{if(parent!==window)parent.postMessage({type,..
 PORTAL_NAME.hq='全权管理者';
 const originalKpi=kpi;kpi=function(label,value,foot=''){const html=originalKpi(label,value,foot);return String(value).includes('@')?html.replace('kpi-value','kpi-value contact-value'):html;};
 const scopeHome=()=>azureSession?.role==='cust'?'home':'dashboard';
+function validScopeInvitation(link,kind){
+ if(!link||!(link.exp==='长期'||/^\d{4}-\d{2}-\d{2}$/.test(link.exp)&&link.exp>=TODAY))return false;
+ if(link.org==='HQ')return kind!=='join'||link.level===1;
+ const a=agent(link.org);if(!a||a.status!=='启用'||a.frz?.scopes?.some(k=>['links','all'].includes(k)))return false;
+ if(a.level===2){const parent=agent(a.parent);if(!parent||parent.status!=='启用'||parent.frz?.scopes?.includes('all'))return false;}
+ return kind!=='join'||a.level===1&&link.level===2;
+}
 const nativeParseHash=parseHash;
 parseHash=function(){
  const parts=location.hash.replace(/^#\/?/,'').split('/');
  if(['apply','join'].includes(parts[0])){
   const registry=parts[0]==='apply'?LINKS:AGENT_LINKS;
-  if(!registry.some(x=>x.code===parts[1])){S.portal='public';S.page='invalid';S.arg=null;return;}
+  if(!registry.some(x=>x.code===parts[1]&&validScopeInvitation(x,parts[0]))){S.portal='public';S.page='invalid';S.arg=null;return;}
   nativeParseHash();return;
  }
  if(!azureSession){S.portal='locked';S.page='login';S.arg=null;return;}
@@ -20,6 +27,7 @@ parseHash=function(){
  const page=parts[0]===role?parts[1]:scopeHome();
  const allowed=new Set(MENUS[role].map(m=>m[0]));if(role!=='cust')allowed.add('app');
  S.portal=role;S.page=allowed.has(page)?page:scopeHome();S.arg=parts[0]===role?parts[2]||null:null;
+ if(role==='l2'&&S.page==='apply'&&!canProxyApply(azureSession.id)){S.page='apps';S.arg=null;}
  if(S.page==='app'&&!appsInScope().some(a=>a.id===S.arg)){S.page='apps';S.arg=null;}
  const canonical=`#/${role}/${S.page}${S.arg?'/'+S.arg:''}`;
  if(location.hash!==canonical)history.replaceState({},'',canonical);
@@ -35,12 +43,12 @@ function notificationNeed(r){return {'OCR 中':'辨識文件並核對結果','�
 function openNotification(id){closeModal();if(azureSession?.role==='cust'){const r=CPS.find(c=>c.id===id);if(!r)return;S.ui.ct=r.dir;S.ui.cs='';S.ui.cq='';S.nextUI={ct:r.dir,cs:'',cq:''};go('cust','cp');setTimeout(()=>{cpDetail(id);document.querySelectorAll('.modal .down,.modal .note.warn,.modal-foot .primary').forEach(el=>el.classList.add('needs-action'));},80);}else{if(!appsInScope().some(a=>a.id===id))return;S.ui.noticeFocus=id;S.nextUI={noticeFocus:id};const a=appsInScope().find(a=>a.id===id);if(azureSession.role==='hq'&&['待 CS 补录','待补件'].includes(a.status)){S.kfErr=new Set(kycIssues(kycOf(a),'cs').map(x=>x.p));}go(azureSession.role,'app',id);render();}}
 function showNotifications(){const records=azureSession?.role==='cust'?CPS.filter(c=>c.status!=='正常'):appsInScope().filter(a=>!['已开通','渠道驳回','已拒绝'].includes(a.status));modal(C('通知','通知','Notifications'),records.length?records.map(r=>`<button class="btn notification-row" onclick="openNotification('${E(r.id)}')"><span><b>${E(r.company||r.name||r.id)}</b><small>${E(I18N.tr(notificationNeed(r)))}</small></span>${statusBadge(r.status)}<span aria-hidden="true">›</span></button>`).join(''):`<p class="muted">${C('目前沒有待處理通知','目前没有待处理通知','No pending notifications')}</p>`);}
 
-function azureMenu(){const role=azureSession.role;const off=role==='l2'&&!agent(azureSession.id).proxyApply;return NAV_GROUPS[role].map(([g,keys])=>`<li class="nav-group"><div class="nav-h">${g}</div><ul>${keys.map(k=>{const [,label]=MENUS[role].find(x=>x[0]===k);return `<li><a ${k==='apply'&&off?'aria-disabled="true" tabindex="-1"':`href="#/${role}/${k}"`} class="${S.page===k||S.page==='app'&&k==='apps'?'active':''} ${k==='apply'&&off?'disabled':''}">${NAVICON[k]||NAVICON.dashboard}<span>${label}</span></a></li>`;}).join('')}</ul></li>`).join('');}
+function azureMenu(){const role=azureSession.role;const off=role==='l2'&&!canProxyApply(azureSession.id);return NAV_GROUPS[role].map(([g,keys])=>`<li class="nav-group"><div class="nav-h">${g}</div><ul>${keys.map(k=>{const [,label]=MENUS[role].find(x=>x[0]===k);return `<li><a ${k==='apply'&&off?'aria-disabled="true" tabindex="-1"':`href="#/${role}/${k}"`} class="${S.page===k||S.page==='app'&&k==='apps'?'active':''} ${k==='apply'&&off?'disabled':''}">${NAVICON[k]||NAVICON.dashboard}<span>${label}</span></a></li>`;}).join('')}</ul></li>`).join('');}
 shell=function(content){const me=ME[S.portal];return `<div class="app"><aside class="sidebar"><a class="brand" href="#/${S.portal}/${scopeHome()}">${azureLogo()}</a><div class="side-search">${ICON.search}<input type="search" placeholder="搜索菜单" aria-label="搜索菜单" oninput="filterNav(this.value)"></div><ul class="nav">${azureMenu()}</ul><button class="sidebar-account" onclick="accountPanel()"><span class="avatar">${E(me.user.slice(0,1))}</span><span><strong>${E(me.user)}</strong><small>${PORTAL_NAME[S.portal]}</small></span><span>›</span></button></aside><header class="header"><div class="header-left"><button class="icon-btn mobile-menu" onclick="openMenu()" aria-label="${C('選單','菜单','Menu')}">${ICON.more}</button>${azureLogo('mobile-logo')}<div class="public-links"><button class="btn sm" onclick="openPublic('apply','HQ-SELF-01')">客户申请页</button><button class="btn sm" onclick="openPublic('join','HQ-AG-01')">代理注册页</button></div></div><div class="global-search"><div class="search-input">${ICON.search}<input id="global-search" type="search" autocomplete="off" placeholder="${C('搜尋客戶、交易、文件…','搜索客户、交易、文件…','Search customers, transactions, files…')}" oninput="azureSearch(this.value)" onkeydown="searchKey(event)" aria-label="${C('搜尋','搜索','Search')}" aria-controls="search-results" aria-expanded="false"><kbd>⌘ K</kbd><button class="search-close" onclick="closeSearch()" aria-label="Close">×</button></div><div id="search-results" class="search-results" hidden></div></div><button class="icon-btn mobile-search" onclick="showSearch()" aria-label="${C('搜尋','搜索','Search')}">${ICON.search}</button>${headerControls()}</header><main class="main" id="main"><div class="page-in">${content}</div><footer class="azure-footer">© 2026 Azure ²</footer></main></div>`;};
 function openMenu(){modal(C('選單','菜单','Menu'),`<nav class="mobile-menu-body"><ul class="nav">${azureMenu()}</ul><div class="public-links"><button class="btn" onclick="openPublic('apply','HQ-SELF-01')">客户申请页</button><button class="btn" onclick="openPublic('join','HQ-AG-01')">代理注册页</button></div><button class="btn account-menu-btn" onclick="accountPanel()">${C('帳戶資訊','账户信息','Account information')}</button></nav>`);}
 function showSearch(){document.querySelector('.header').classList.add('search-open');document.getElementById('global-search')?.focus();}
 function closeSearch(){document.querySelector('.header')?.classList.remove('search-open');const el=$('#search-results');if(el)el.hidden=true;$('#global-search')?.setAttribute('aria-expanded','false');}
-function azureSearch(query){const el=$('#search-results');if(!el)return;const q=query.trim().toLowerCase();if(!q){closeSearch();return;}const role=azureSession.role;const all=MENUS[role].filter(([k])=>!(role==='l2'&&k==='apply'&&!agent(azureSession.id).proxyApply)).map(([k,l])=>({label:I18N.tr(l),route:`#/${role}/${k}`,meta:C('功能','功能','Function')}));
+function azureSearch(query){const el=$('#search-results');if(!el)return;const q=query.trim().toLowerCase();if(!q){closeSearch();return;}const role=azureSession.role;const all=MENUS[role].filter(([k])=>!(role==='l2'&&k==='apply'&&!canProxyApply(azureSession.id))).map(([k,l])=>({label:I18N.tr(l),route:`#/${role}/${k}`,meta:C('功能','功能','Function')}));
  custsInScope().forEach(c=>all.push({label:I18N.tr(c.name),route:`#/${role}/${role==='cust'?'accounts':'customers'}`,meta:c.id}));
  if(role!=='cust')appsInScope().forEach(a=>all.push({label:I18N.tr(a.company),route:`#/${role}/app/${a.id}`,meta:a.id}));
  txsInScope().forEach(t=>all.push({label:t.id,route:`#/${role}/txs`,meta:I18N.tr(t.cp||t.type)}));
@@ -60,6 +68,7 @@ const nativeLocaleSet=I18N.set.bind(I18N);I18N.set=function(lang){nativeLocaleSe
 I18N.switcher=languagePicker;
 const originalRender=render;
 render=function(){
+ if(azureSession&&S.portal!=='public'&&!scopeActor()){$('#root').innerHTML=`<div class="locked">${azureLogo()}<p>${C('此帳號尚未啟用或已凍結登入，請聯絡管理員。','此账号尚未启用或已冻结登录，请联系管理员。','This account is inactive or sign-in is frozen. Contact your administrator.')}</p><button class="btn" onclick="sendParent('azure-logout')">${C('登出','登出','Sign out')}</button></div>`;return;}
  if(!azureSession&&S.portal!=='public'){$('#root').innerHTML=`<div class="locked">${azureLogo()}<p>${C('請先登入以開啟 CMS','请先登录以开启 CMS','Sign in to open CMS')}</p><a class="btn primary" href="../../index.html" target="_top">${C('登入','登录','Sign in')}</a></div>`;return;}
  if(S.page==='invalid'){$('#root').innerHTML=`<div class="locked"><h1>${C('邀請連結無效','邀请链接无效','Invalid invitation link')}</h1><a class="btn" href="../../index.html" target="_top">${C('返回登入','返回登录','Back to sign in')}</a></div>`;return;}
  originalRender();I18N.run();

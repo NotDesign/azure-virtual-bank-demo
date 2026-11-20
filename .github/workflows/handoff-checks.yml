@@ -1,0 +1,39 @@
+name: Verify Azure developer handoff
+on:
+  push:
+    branches: [codex/developer-handoff-20261120-two-cases]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DEMO_URL: http://127.0.0.1:3276/?v=20261120-handoff
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - name: Start the local prototype
+        run: |
+          PORT=3276 node scripts/serve.mjs > /tmp/azure-handoff-server.log 2>&1 &
+          for n in {1..30}; do if curl -fsS http://127.0.0.1:3276/ > /dev/null; then exit 0; fi; sleep 1; done
+          cat /tmp/azure-handoff-server.log
+          exit 1
+      - run: QA_REPORT=.design-build/handoff/fixtures.json node scripts/verify-two-case-fixtures.mjs
+      - run: QA_REPORT=.design-build/handoff/hierarchy.json node scripts/verify-hierarchy-handoff.mjs
+      - run: QA_REPORT=.design-build/handoff/delegation.json node scripts/verify-admin-delegation-handoff.mjs
+      - run: QA_REPORT=.design-build/handoff/external-review.json node scripts/verify-external-review.mjs
+      - run: QA_REPORT=.design-build/handoff/intake.json node scripts/verify-intake-handoff.mjs
+      - run: QA_REPORT=.design-build/handoff/kyc.json node scripts/verify-kyc-methods.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: azure-handoff-verification
+          path: .design-build/handoff/

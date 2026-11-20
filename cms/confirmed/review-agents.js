@@ -81,6 +81,7 @@
   };
   const launchPublic = openPublic;
   openPublic = function(kind, code) {
+    if(kind==='apply'&&['l1','l2'].includes(accountRole())&&code==='HQ-SELF-01'){const own=LINKS.find(l=>l.org===AzureBridge.account.id&&validScopeInvitation(l,'apply'));if(!own){go(accountRole(),'links');return;}code=own.code;}
     if (kind === 'join' && accountRole() === 'l2') return;
     if (kind === 'join' && accountRole() === 'l1' && code === 'HQ-AG-01') {
       const own = AGENT_LINKS.find(l => l.level === 2 && l.org === ME.l1.org && (l.exp === '长期' || l.exp >= TODAY));
@@ -181,7 +182,7 @@
     }
   };
   const setApplication = agentAppSet;
-  agentAppSet = function(id,status) { const a=AGENT_APPS.find(a=>a.id === id);if(!canApproveAgent(a))return approvalDenied();return setApplication(id,status); };
+  agentAppSet = function(id,status) { const a=AGENT_APPS.find(a=>a.id === id);if(!canApproveAgent(a)||!['待审批','待补件'].includes(a.status)||!['待补件','已驳回'].includes(status))return approvalDenied();return setApplication(id,status); };
   const approveApplication = approveAgent;
   approveAgent = function(id) {
     const a=AGENT_APPS.find(a=>a.id === id);

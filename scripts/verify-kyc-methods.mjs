@@ -1,5 +1,6 @@
 import {chromium} from 'playwright';
 import fs from 'node:fs/promises';
+import {existsSync} from 'node:fs';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
 const base=process.env.DEMO_URL||'http://127.0.0.1:3275/?v=20261117-kyc-simple';
@@ -7,7 +8,7 @@ const output=process.env.QA_REPORT||'.design-build/kyc-methods/qa-kyc-methods.js
 const report={base,checks:[],errors:[],externalRequests:[],phoneStages:[]};
 const check=(label,passed,detail)=>{report.checks.push({label,passed:!!passed,...(detail===undefined?{}:{detail})});console.log((passed?'PASS ':'FAIL ')+label);};
 await fs.mkdir(dir,{recursive:true});
-const browser=await chromium.launch({headless:true,executablePath:'/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'});
+const executablePath=process.env.BROWSER_PATH||(existsSync('/Applications/Brave Browser.app/Contents/MacOS/Brave Browser')?'/Applications/Brave Browser.app/Contents/MacOS/Brave Browser':undefined);const browser=await chromium.launch({headless:true,...(executablePath?{executablePath}:{})});
 const context=await browser.newContext({viewport:{width:1440,height:1000},reducedMotion:'reduce'});
 await context.route('https://api.coinbase.com/**',r=>r.fulfill({json:{data:{currency:'USD',rates:{USD:'1',HKD:'7.8',USDT:'1',CNY:'7.2'}}}}));
 await context.addInitScript(()=>{window.qaMediaRequests=0;if(navigator.mediaDevices)navigator.mediaDevices.getUserMedia=async()=>{window.qaMediaRequests++;throw new DOMException('Mock-only KYC must not request a camera','NotAllowedError');};});

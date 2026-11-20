@@ -1,3 +1,5 @@
+> **開發交付版 2026-11-20：兩個完整客戶案例。** 先讀 [DEVELOPMENT.md](DEVELOPMENT.md) 與 [最後檢查／未完成清單](docs/handoff/AUDIT_AND_OPEN_ITEMS.md)。本次新增上下層級與外部申請／審單的本機閉環；正式後端與金流仍未實作。以下保留各歷史版本說明，當前驗收以交付包 verification 為準。
+
 # Azure CMS interactive demo
 
 Traditional Chinese first, with Simplified Chinese and English. The login preserves the existing independent Azure orb, ripple and slider motion. Email, SMS and Authenticator OTP flows lead to the authenticated CMS.

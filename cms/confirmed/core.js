@@ -20,34 +20,43 @@ const prod = (code) => PRODUCTS.find((p) => p.code === code);
 const cust = (id) => CUSTOMERS.find((c) => c.id === id);
 const agent = (id) => AGENTS.find((a) => a.id === id);
 const priceStr = (code, v) => { const p = prod(code); if (v == null || v === '') return '—'; return p.unit === 'pct' ? nf(v, 2) + '%' : p.unit === 'bps' ? v + ' bps' : 'HKD ' + nf(v, 0); };
-const ownerLabel = (c) => (!c.l1 ? '<span class="badge acc">自营</span>' : `<span class="small">${agent(c.l1).name}</span>${c.l2 ? `<div class="small muted">↳ ${agent(c.l2).name}</div>` : '<div class="small muted">一级直属</div>'}`);
+const htmlText = value => String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ownerLabel = (c) => (!c.l1 ? '<span class="badge acc">自营</span>' : `<span class="small">${htmlText(agent(c.l1).name)}</span>${c.l2 ? `<div class="small muted">↳ ${htmlText(agent(c.l2).name)}</div>` : '<div class="small muted">一级直属</div>'}`);
 const statusBadge = (s) => {
   const m = { '已开通': 'ok', '成功': 'ok', '正常': 'ok', '启用': 'ok', '已生效': 'ok', '已审核': 'ok', '已结算': 'ok', '可申请': 'ok',
-    '待 CS 补录': 'warn', '待补件': 'warn', '待合规审核': 'info', '待董事验证': 'info', '渠道审核中': 'info', '已提交渠道': 'info', 'OCR 中': 'info',
+    '待 CS 补录': 'warn', '待补件': 'warn', '待合规审核': 'info', '待董事验证': 'info', '渠道审核中': 'info', '渠道审核通过': 'info', '已提交渠道': 'info', 'OCR 中': 'info',
     '处理中': 'info', '审核中': 'info', '已发送 Allinpay': 'info', '可结算': 'acc', '待结算': '', '待发送': 'warn', '待复核': 'warn', '待渠道确认': 'warn',
     '冻结': 'err', '已交割': 'ok', '已取消': '', '新增待审核': 'warn', '修改待审核': 'warn', '审核不通过': 'err', '已冻结': 'err', '已关闭': '', '待提交': '', '待完善': 'warn', '已进件': 'ok', '进件中': 'info', '未进件': '', '进件失败': 'err', '无需进件': '', '失败': 'err', '处理成功': 'ok', '处理失败': 'err', '导入中': 'info', '部分成功': 'warn', '已生成': 'ok', '待审批': 'warn', '已失效': '', '已转移': 'info', '渠道驳回': 'err', '已拒绝': 'err', '停用': 'err', '规划中': '', '暂估': 'warn', '待回复': 'warn', '已回复': 'info', '逾期': 'err', '退回补充': 'warn', '已结案': 'ok', '已撤销': '', '已解冻': 'ok', '调单': 'info', '调单结案': 'ok', '调单撤销': '', '调单退回': 'warn', '止付': 'err' };
-  return `<span class="badge ${m[s] ?? ''}">${s}</span>`;
+  return `<span class="badge ${m[s] ?? ''}">${htmlText(s)}</span>`;
 };
 
 // ---------- engine (PRD 4.2 / 4.5) ----------
 function floorOf(c, code) { return c.l1 ? FLOORS[c.l1][code] : prod(code).cost; }
 // commission follows the owner at the time of the transaction (snapshot), so re-assignment only affects future transactions
-const txL1 = (t) => (t.l1 !== undefined ? t.l1 : cust(t.cust).l1);
-const txL2 = (t) => (t.l2 !== undefined ? t.l2 : cust(t.cust).l2);
-function split(tx) {
-  const c0 = cust(tx.cust), c = { ...c0, l1: txL1(tx), l2: txL2(tx) }, p = prod(tx.prod), price = CUST_PRICE[c.id][tx.prod], floor = floorOf(c, tx.prod);
-  const baseH = tx.amt * FXR[tx.ccy];
-  let fee, cost, margin, l1;
-  if (p.unit === 'pct') { fee = baseH * price / 100; cost = baseH * p.cost / 100; l1 = baseH * (price - floor) / 100; }
-  else if (p.unit === 'fixed') { fee = price; cost = p.cost; l1 = price - floor; }
-  else { fee = baseH * price / 10000; cost = fee * p.share; l1 = baseH * (price - floor) / 10000 * (1 - p.share); }
-  margin = fee - cost;
-  if (!c.l1) l1 = 0;
-  const ratio = c.l2 ? (L2RATIO[c.l2][tx.prod] || 0) : 0;
-  const l2 = l1 * ratio / 100;
-  const actual = fee * (tx.adj || 1);
-  return { expected: fee, actual, diff: actual - fee, cost, margin, l1, l2, l1net: l1 - l2, hq: margin - l1, est: p.unit === 'bps' };
+const txL1 = (t) => (t.l1 !== undefined ? t.l1 : cust(t.cust)?.l1 || null);
+const txL2 = (t) => (t.l2 !== undefined ? t.l2 : cust(t.cust)?.l2 || null);
+// Freeze the transaction's pricing terms: future ownership, floor and ratio changes
+// must not recalculate historical commission. This is still local Demo accounting.
+function txPricingSnapshot(tx) {
+  if (tx.pricingSnapshot) return tx.pricingSnapshot;
+  const c = cust(tx.cust), p = prod(tx.prod);
+  if (!c || !p) throw new Error('Unknown transaction customer or product: ' + tx.id);
+  const l1 = txL1(tx), l2 = txL2(tx);
+  tx.pricingSnapshot = Object.freeze({ unit:p.unit, price:CUST_PRICE[c.id][tx.prod], floor:l1 ? FLOORS[l1][tx.prod] : p.cost, cost:p.cost, share:p.share || 0, ratio:l2 ? (L2RATIO[l2]?.[tx.prod] ?? 0) : 0, fx:FXR[tx.ccy], l1, l2 });
+  return tx.pricingSnapshot;
 }
+function split(tx) {
+  const p = txPricingSnapshot(tx), baseH = tx.amt * p.fx;
+  let fee, cost, margin, l1;
+  if (p.unit === 'pct') { fee = baseH * p.price / 100; cost = baseH * p.cost / 100; l1 = baseH * (p.price - p.floor) / 100; }
+  else if (p.unit === 'fixed') { fee = p.price; cost = p.cost; l1 = p.price - p.floor; }
+  else { fee = baseH * p.price / 10000; cost = fee * p.share; l1 = baseH * (p.price - p.floor) / 10000 * (1 - p.share); }
+  margin = fee - cost;
+  if (!p.l1) l1 = 0;
+  const l2 = l1 * p.ratio / 100, actual = fee * (tx.adj ?? 1);
+  return { expected:fee, actual, diff:actual-fee, cost, margin, l1, l2, l1net:l1-l2, hq:margin-l1, est:p.unit==='bps' };
+}
+TXS.forEach(tx => { if (cust(tx.cust) && prod(tx.prod)) txPricingSnapshot(tx); });
 function settleInfo(tx) {
   const d = addDays(tx.date, 15);
   const st = d <= '2026-10-01' ? '已结算' : d <= TODAY ? '可结算' : '待结算';
@@ -63,19 +72,36 @@ function calcExample(code, amountHKD, price, floor, ratio, hasL2 = true) {
 }
 
 // ---------- scope ----------
-function custsInScope() {
-  const o = ME[S.portal].org;
-  if (S.portal === 'hq') return CUSTOMERS;
-  if (S.portal === 'l1') return CUSTOMERS.filter((c) => c.l1 === o);
-  if (S.portal === 'l2') return CUSTOMERS.filter((c) => c.l2 === o);
-  return CUSTOMERS.filter((c) => c.id === o);
+// Scope follows the parent-issued session, never a route string or selected UI row.
+function scopeActor() {
+  const account = window.AzureBridge?.account;
+  if (!account || account.role !== S.portal || !ME[account.role] || account.id !== ME[account.role].org) return null;
+  if (account.role === 'hq') return account.id === 'HQ' ? account : null;
+  if (account.role === 'cust') return cust(account.id) && (window.AzureAdminChild?.customerId===account.id || !cust(account.id).frz?.scopes?.some(k=>['all','login'].includes(k))) ? account : null;
+  const a = agent(account.id), level = account.role === 'l1' ? 1 : account.role === 'l2' ? 2 : 0;
+  const parent = level===2 ? agent(a?.parent) : null;
+  return a && a.level === level && a.status === '启用' && !a.frz?.scopes?.some(k=>['all','login'].includes(k)) && (level!==2||parent?.status==='启用'&&!parent.frz?.scopes?.includes('all')) ? account : null;
 }
-function txsInScope() { const o = ME[S.portal].org; if (S.portal === 'l1') return TXS.filter((t) => txL1(t) === o); if (S.portal === 'l2') return TXS.filter((t) => txL2(t) === o); const ids = new Set(custsInScope().map((c) => c.id)); return TXS.filter((t) => ids.has(t.cust)); }
+function canProxyApply(id){const a=agent(id);return !!a&&a.level===2&&a.status==='启用'&&!!a.proxyApply&&!a.frz?.scopes?.some(k=>['all','proxy'].includes(k))&&agent(a.parent)?.status==='启用';}
+function custsInScope() {
+  const actor=scopeActor(); if (!actor) return [];
+  if (actor.role==='hq') return CUSTOMERS;
+  if (actor.role==='l1') return CUSTOMERS.filter(c=>c.l1===actor.id);
+  if (actor.role==='l2') return CUSTOMERS.filter(c=>c.l2===actor.id && c.l1===agent(actor.id).parent);
+  return CUSTOMERS.filter(c=>c.id===actor.id);
+}
+function txsInScope() {
+  const actor=scopeActor(); if (!actor) return [];
+  if (actor.role==='l1') return TXS.filter(t=>txL1(t)===actor.id);
+  if (actor.role==='l2') return TXS.filter(t=>txL2(t)===actor.id);
+  const ids=new Set(custsInScope().map(c=>c.id)); return TXS.filter(t=>ids.has(t.cust));
+}
 function appsInScope() {
-  const o = ME[S.portal].org;
-  if (S.portal === 'hq') return APPLICATIONS;
-  if (S.portal === 'l1') return APPLICATIONS.filter((a) => a.owner === o);
-  return APPLICATIONS.filter((a) => a.l2 === o);
+  const actor=scopeActor(); if (!actor) return [];
+  if (actor.role==='hq') return APPLICATIONS;
+  if (actor.role==='l1') return APPLICATIONS.filter(a=>a.owner===actor.id);
+  if (actor.role==='l2') return APPLICATIONS.filter(a=>a.l2===actor.id && a.owner===agent(actor.id).parent);
+  return APPLICATIONS.filter(a=>a.customerId===actor.id || a.cust===actor.id);
 }
 function myEarn(sp) { return S.portal === 'hq' ? sp.hq : S.portal === 'l1' ? sp.l1net : S.portal === 'l2' ? sp.l2 : 0; }
 const volH = (t) => t.amt * FXR[t.ccy];
